@@ -15,6 +15,7 @@ export const router = createRouter({
     { path: '/system', redirect: '/system/categories' },
     { path: '/system/categories', name: 'categories', component: () => import('./views/TaxonomyManagementView.vue'), props: { resource: 'categories' } },
     { path: '/system/tags', name: 'tags', component: () => import('./views/TaxonomyManagementView.vue'), props: { resource: 'tags' } },
+    { path: '/system/operation-logs', name: 'operationLogs', component: () => import('./views/OperationLogView.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/dashboard' }
   ]
 });

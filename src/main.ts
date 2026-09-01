@@ -8,6 +8,7 @@ import { taxonomyRepositoryKey, createHttpTaxonomyRepository } from './features/
 import { videoRepositoryKey, createHttpVideoRepository } from './features/video/repository';
 import { reviewRepositoryKey, createHttpReviewRepository } from './features/review/repository';
 import { userRepositoryKey, createHttpUserRepository } from './features/user/repository';
+import { adminRepositoryKey, createHttpAdminRepository } from './features/admin/repository';
 import { commentReportRepositoryKey, createHttpCommentReportRepository } from './features/comment-report/repository';
 import { authState, createAdminAuthRepository } from './features/auth/repository';
 import './styles/index.css';
@@ -18,6 +19,7 @@ const taxonomyRepository = createHttpTaxonomyRepository(apiBaseUrl);
 const videoRepository = createHttpVideoRepository(apiBaseUrl);
 const reviewRepository = createHttpReviewRepository(apiBaseUrl);
 const userRepository = createHttpUserRepository(apiBaseUrl);
+const adminRepository = createHttpAdminRepository(apiBaseUrl);
 const commentReportRepository = createHttpCommentReportRepository(apiBaseUrl);
 const authRepository = createAdminAuthRepository(apiBaseUrl);
 
@@ -39,6 +41,7 @@ bootstrapAuth().finally(() => {
     .provide(videoRepositoryKey, videoRepository)
     .provide(reviewRepositoryKey, reviewRepository)
     .provide(userRepositoryKey, userRepository)
+    .provide(adminRepositoryKey, adminRepository)
     .provide(commentReportRepositoryKey, commentReportRepository)
     .mount('#app');
 });

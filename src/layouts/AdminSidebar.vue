@@ -3,6 +3,7 @@ import {
   ChatDotRound,
   Checked,
   DataBoard,
+  Document,
   Setting,
   User,
   VideoCamera
@@ -30,7 +31,8 @@ const navigation: NavigationItem[] = [
   { label: '用户管理', icon: User, to: '/users' },
   { label: '评论与举报', icon: ChatDotRound, to: '/comments', activePaths: ['/comments', '/reports'] },
   { label: '分类管理', icon: Setting, to: '/system/categories' },
-  { label: '标签管理', icon: Setting, to: '/system/tags' }
+  { label: '标签管理', icon: Setting, to: '/system/tags' },
+  { label: '操作日志', icon: Document, to: '/system/operation-logs' }
 ];
 
 function showComingSoon(label: string) {

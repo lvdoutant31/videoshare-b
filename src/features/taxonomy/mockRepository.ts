@@ -17,16 +17,16 @@ export function createMockTaxonomyRepository(): TaxonomyRepository {
   let categoryId = 5;
   let tagId = 6;
   let categories: Category[] = [
-    { id: '1', name: '企业文化', icon: 'building', sort: 10, status: 'ENABLED', createdAt: now, updatedAt: now },
-    { id: '2', name: '安全生产', icon: 'shield', sort: 20, status: 'ENABLED', createdAt: now, updatedAt: now },
-    { id: '3', name: '技能培训', icon: 'graduation-cap', sort: 30, status: 'ENABLED', createdAt: now, updatedAt: now },
-    { id: '4', name: '历史活动', icon: null, sort: 90, status: 'DISABLED', createdAt: now, updatedAt: now }
+    { id: '1', name: '企业文化', icon: 'building', sort: 10, status: 'ENABLED', deleted: 0, createdAt: now, updatedAt: now },
+    { id: '2', name: '安全生产', icon: 'shield', sort: 20, status: 'ENABLED', deleted: 0, createdAt: now, updatedAt: now },
+    { id: '3', name: '技能培训', icon: 'graduation-cap', sort: 30, status: 'ENABLED', deleted: 0, createdAt: now, updatedAt: now },
+    { id: '4', name: '历史活动', icon: null, sort: 90, status: 'DISABLED', deleted: 0, createdAt: now, updatedAt: now }
   ];
   let tags: Tag[] = [
-    { id: '1', name: '入职培训', heatScore: 96, status: 'ENABLED', createdAt: now, updatedAt: now },
-    { id: '2', name: '安全规范', heatScore: 88, status: 'ENABLED', createdAt: now, updatedAt: now },
-    { id: '3', name: '设备巡检', heatScore: 75, status: 'ENABLED', createdAt: now, updatedAt: now },
-    { id: '4', name: '往期活动', heatScore: 14, status: 'DISABLED', createdAt: now, updatedAt: now }
+    { id: '1', name: '入职培训', heatScore: 96, status: 'ENABLED', deleted: 0, createdAt: now, updatedAt: now },
+    { id: '2', name: '安全规范', heatScore: 88, status: 'ENABLED', deleted: 0, createdAt: now, updatedAt: now },
+    { id: '3', name: '设备巡检', heatScore: 75, status: 'ENABLED', deleted: 0, createdAt: now, updatedAt: now },
+    { id: '4', name: '往期活动', heatScore: 14, status: 'DISABLED', deleted: 0, createdAt: now, updatedAt: now }
   ];
 
   function assertUnique(items: { id: string; name: string }[], name: string, id?: string) {
@@ -37,6 +37,7 @@ export function createMockTaxonomyRepository(): TaxonomyRepository {
 
   return {
     async listCategories(query) { return page([...categories].sort((a, b) => a.sort - b.sort || Number(b.id) - Number(a.id)), query); },
+    async listCategoriesTrash(query) { return page(categories.filter((item) => item.deleted === 1), query); },
     async createCategory(input) {
       assertUnique(categories, input.name);
       const item: Category = { id: String(categoryId++), icon: input.icon ?? null, ...input, createdAt: now, updatedAt: now };
@@ -53,9 +54,17 @@ export function createMockTaxonomyRepository(): TaxonomyRepository {
     },
     async deleteCategory(id) {
       if (id === '2') throw new TaxonomyError('分类已被视频引用，请先停用分类', { code: 'CATEGORY_IN_USE' });
-      categories = categories.filter((item) => item.id !== id);
+      const item = categories.find((entry) => entry.id === id);
+      if (item) item.deleted = 1;
+    },
+    async restoreCategory(id) {
+      const item = categories.find((entry) => entry.id === id && entry.deleted === 1);
+      if (!item) throw new TaxonomyError('分类不存在', { code: 'CATEGORY_NOT_FOUND' });
+      item.deleted = 0;
+      return clone(item);
     },
     async listTags(query) { return page([...tags].sort((a, b) => b.heatScore - a.heatScore || Number(b.id) - Number(a.id)), query); },
+    async listTagsTrash(query) { return page(tags.filter((item) => item.deleted === 1), query); },
     async createTag(input) {
       assertUnique(tags, input.name);
       const item: Tag = { id: String(tagId++), ...input, createdAt: now, updatedAt: now };
@@ -72,7 +81,14 @@ export function createMockTaxonomyRepository(): TaxonomyRepository {
     },
     async deleteTag(id) {
       if (id === '2') throw new TaxonomyError('标签已被视频引用，请先停用标签', { code: 'TAG_IN_USE' });
-      tags = tags.filter((item) => item.id !== id);
+      const item = tags.find((entry) => entry.id === id);
+      if (item) item.deleted = 1;
+    },
+    async restoreTag(id) {
+      const item = tags.find((entry) => entry.id === id && entry.deleted === 1);
+      if (!item) throw new TaxonomyError('标签不存在', { code: 'TAG_NOT_FOUND' });
+      item.deleted = 0;
+      return clone(item);
     }
   };
 }

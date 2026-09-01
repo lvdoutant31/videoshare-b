@@ -70,7 +70,13 @@ async function requestData<T>(fetcher: Fetcher, url: string, init?: RequestInit)
 function pageParams(query: PageQuery) {
   const params = new URLSearchParams({ page: String(query.page), pageSize: String(query.pageSize) });
   if (query.keyword) params.set('keyword', query.keyword);
-  if (query.status) params.set('status', query.status);
+  if (query.status && query.status !== 'DELETED') params.set('status', query.status);
+  return params;
+}
+
+function trashPageParams(query: PageQuery) {
+  const params = new URLSearchParams({ page: String(query.page), pageSize: String(query.pageSize) });
+  if (query.keyword) params.set('keyword', query.keyword);
   return params;
 }
 
@@ -87,13 +93,17 @@ export function createHttpTaxonomyRepository(
 
   return {
     listCategories: (query) => requestData<PageResult<Category>>(fetcher, `${endpoint('categories')}?${pageParams(query)}`),
+    listCategoriesTrash: (query) => requestData<PageResult<Category>>(fetcher, `${endpoint('categories', '/trash')}?${trashPageParams(query)}`),
     createCategory: (input) => requestData<Category>(fetcher, endpoint('categories'), json('POST', input)),
     updateCategory: (id, input) => requestData<Category>(fetcher, endpoint('categories', `/${id}`), json('PATCH', input)),
     async deleteCategory(id) { await requestData<null>(fetcher, endpoint('categories', `/${id}`), { method: 'DELETE' }); },
+    restoreCategory: (id) => requestData<Category>(fetcher, endpoint('categories', `/${id}/restore`), { method: 'POST' }),
     listTags: (query) => requestData<PageResult<Tag>>(fetcher, `${endpoint('tags')}?${pageParams(query)}`),
+    listTagsTrash: (query) => requestData<PageResult<Tag>>(fetcher, `${endpoint('tags', '/trash')}?${trashPageParams(query)}`),
     createTag: (input) => requestData<Tag>(fetcher, endpoint('tags'), json('POST', input)),
     updateTag: (id, input) => requestData<Tag>(fetcher, endpoint('tags', `/${id}`), json('PATCH', input)),
-    async deleteTag(id) { await requestData<null>(fetcher, endpoint('tags', `/${id}`), { method: 'DELETE' }); }
+    async deleteTag(id) { await requestData<null>(fetcher, endpoint('tags', `/${id}`), { method: 'DELETE' }); },
+    restoreTag: (id) => requestData<Tag>(fetcher, endpoint('tags', `/${id}/restore`), { method: 'POST' })
   };
 }
 
