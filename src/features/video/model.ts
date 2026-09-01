@@ -40,6 +40,33 @@ export interface VideoQuery {
 export interface VideoPage { items: Video[]; page: number; pageSize: number; total: number; }
 export interface VideoUpdate { title: string; description: string; category: string; tags: string[]; visibility: Video['visibility']; }
 export interface VideoCreate { authorId: string; originalMediaId: string; coverMediaId?: string; title: string; description?: string; sourceNote?: string; categoryIds?: string[]; tagIds?: string[]; visibility?: Video['visibility']; }
+export interface AuthorOption {
+  id: string;
+  nickname: string;
+  status: string;
+}
+
+export interface CategoryOption {
+  id: string;
+  name: string;
+  status: string;
+}
+
+export interface TagOption {
+  id: string;
+  name: string;
+  status: string;
+}
+
+export interface VideoUploadInput {
+  authorId: string;
+  title: string;
+  description: string;
+  categoryIds: string[];
+  tagIds: string[];
+  file: File;
+}
+
 export interface BatchResult { succeededIds: string[]; failed: Array<{ id: string; message: string }>; }
 
 export const statusLabel: Record<VideoStatus, string> = { DRAFT: '草稿', PENDING_REVIEW: '待审核', PUBLISHED: '已发布', OFF_SHELF: '已下架', TRANSCODING: '转码中', TRANSCODE_FAILED: '转码失败', REJECTED: '已驳回' };
@@ -59,4 +86,8 @@ export interface VideoRepository {
   batchOffShelf(ids: string[], reason: string): Promise<BatchResult>;
   batchRestore(ids: string[]): Promise<BatchResult>;
   createSimulatedUpload(fileName: string): Promise<Video>;
+  listAuthors(): Promise<AuthorOption[]>;
+  listCategories(): Promise<CategoryOption[]>;
+  listTags(): Promise<TagOption[]>;
+  uploadDraft(input: VideoUploadInput): Promise<unknown>;
 }
