@@ -6,10 +6,14 @@ import AdminShell from '../layouts/AdminShell.vue';
 import VideoUploadDialog from '../features/video/components/VideoUploadDialog.vue';
 import { allowedActions, statusLabel, type Video, type VideoAction, type VideoQuery, type VideoRepository, type VideoStatus, type VideoUpdate } from '../features/video/model';
 import { videoRepositoryKey } from '../features/video/repository';
+import { taxonomyRepositoryKey } from '../features/taxonomy/repository';
+import type { TaxonomyRepository } from '../features/taxonomy/model';
 
 const repository = inject<VideoRepository>(videoRepositoryKey);
 if (!repository) throw new Error('Video repository is not configured');
 const videoRepository: VideoRepository = repository;
+const taxonomyRepo = inject<TaxonomyRepository>(taxonomyRepositoryKey);
+if (!taxonomyRepo) throw new Error('Taxonomy repository is not configured');
 const mockMode = import.meta.env.VITE_USE_DASHBOARD_MOCK !== 'false';
 const items = ref<Video[]>([]); const total = ref(0); const loading = ref(true); const refreshing = ref(false); const error = ref<string>();
 const query = reactive<VideoQuery>({ page: 1, pageSize: 20, keyword: '', status: undefined, category: undefined });
@@ -50,7 +54,7 @@ onMounted(() => { void load(); });
     <el-drawer v-model="detailOpen" title="视频详情" size="480px"><div v-if="detail" class="detail"><div class="preview"><video v-if="detail.previewUrl" :src="detail.previewUrl" controls /><p v-else>预览暂不可用</p></div><h3>{{ detail.title }}</h3><el-tag :type="tagType(detail.status)">{{ statusLabel[detail.status] }}</el-tag><p>{{ detail.description }}</p><dl><div><dt>作者</dt><dd>{{ detail.author }}</dd></div><div><dt>分类</dt><dd>{{ detail.category }}</dd></div><div><dt>可见范围</dt><dd>{{ detail.visibility === 'PUBLIC' ? '公开' : '仅内部' }}</dd></div><div><dt>更新时间</dt><dd>{{ time(detail.updatedAt) }}</dd></div></dl><p v-if="detail.transcodeError" class="diagnostic">转码诊断：{{ detail.transcodeError }}</p><p v-if="detail.offShelfReason" class="diagnostic">下架原因：{{ detail.offShelfReason }}</p></div><el-skeleton v-else :rows="8" animated /></el-drawer>
     <el-dialog v-model="editorOpen" title="编辑视频信息" width="520px"><el-form label-position="top"><el-form-item label="标题" required><el-input v-model="form.title" maxlength="100" show-word-limit /></el-form-item><el-form-item label="简介"><el-input v-model="form.description" type="textarea" :rows="3" maxlength="500" show-word-limit /></el-form-item><el-form-item label="分类" required><el-select v-model="form.category"><el-option v-for="category in categories" :key="category" :label="category" :value="category" /></el-select></el-form-item><el-form-item label="标签"><el-select v-model="form.tags" multiple allow-create filterable default-first-option /></el-form-item><el-form-item label="可见范围"><el-radio-group v-model="form.visibility"><el-radio value="PUBLIC">公开</el-radio><el-radio value="INTERNAL">仅内部</el-radio></el-radio-group></el-form-item></el-form><template #footer><el-button @click="editorOpen = false">取消</el-button><el-button type="primary" :loading="rowLoading.startsWith('edit')" @click="save">保存</el-button></template></el-dialog>
     <el-dialog v-model="reasonOpen" title="下架视频" width="440px"><p>请说明下架原因。视频下架后将停止公开展示。</p><el-input v-model="reason" type="textarea" :rows="3" maxlength="200" show-word-limit placeholder="例如：内容需要更新" /><template #footer><el-button @click="reasonOpen = false">取消</el-button><el-button type="danger" :loading="rowLoading === 'off-shelf'" @click="confirmOffShelf">下一步确认</el-button></template></el-dialog>
-    <VideoUploadDialog v-model="uploadOpen" :repository="videoRepository" @uploaded="handleUploaded" />
+    <VideoUploadDialog v-model="uploadOpen" :repository="videoRepository" :taxonomy-repository="taxonomyRepo" @uploaded="handleUploaded" />
   </AdminShell>
 </template>
 

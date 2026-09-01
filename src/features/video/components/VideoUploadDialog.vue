@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { UploadFilled } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
-import type { UploadFile, UploadFiles, UploadUserFile } from 'element-plus';
+import type { UploadFile, UploadFiles, UploadProps, UploadUserFile } from 'element-plus';
 import { reactive, ref, shallowRef, watch } from 'vue';
-import type { AuthorOption, CategoryOption, TagOption } from '../model';
+import type { AuthorOption } from '../model';
 import type { VideoRepository } from '../repository';
+import type { TaxonomyRepository } from '../../taxonomy/model';
 
 const props = defineProps<{
   modelValue: boolean;
   repository: VideoRepository;
+  taxonomyRepository: TaxonomyRepository;
 }>();
 
 const emit = defineEmits<{
@@ -29,13 +31,16 @@ const form = reactive({
 });
 const selectedFile = shallowRef<File | null>(null);
 const fileList = ref<UploadUserFile[]>([]);
+const coverUrl = ref<string | null>(null);
 const authors = ref<AuthorOption[]>([]);
-const categories = ref<CategoryOption[]>([]);
-const tags = ref<TagOption[]>([]);
+const categories = ref<{ id: string; name: string }[]>([]);
+const tags = ref<{ id: string; name: string }[]>([]);
 const loadingOptions = ref(false);
 const optionsLoaded = ref(false);
 const optionsError = ref('');
 const submitting = ref(false);
+const uploadRef = ref<InstanceType<typeof import('element-plus')['ElUpload']>>();
+
 const fieldErrors = reactive({
   authorId: '',
   title: '',
@@ -50,14 +55,14 @@ async function loadOptions(force = false) {
   loadingOptions.value = true;
   optionsError.value = '';
   try {
-    const [authorItems, categoryItems, tagItems] = await Promise.all([
+    const [authorItems, categoryPage, tagPage] = await Promise.all([
       props.repository.listAuthors(),
-      props.repository.listCategories(),
-      props.repository.listTags()
+      props.taxonomyRepository.listCategories({ page: 1, pageSize: 100, status: 'ENABLED' }),
+      props.taxonomyRepository.listTags({ page: 1, pageSize: 100, status: 'ENABLED' })
     ]);
     authors.value = authorItems;
-    categories.value = categoryItems;
-    tags.value = tagItems;
+    categories.value = categoryPage.items.map((c) => ({ id: c.id, name: c.name }));
+    tags.value = tagPage.items.map((t) => ({ id: t.id, name: t.name }));
     optionsLoaded.value = true;
   } catch (error) {
     optionsError.value = error instanceof Error ? error.message : '上传选项加载失败';
@@ -71,7 +76,54 @@ watch(() => props.modelValue, (open) => {
   if (open) void loadOptions();
 }, { immediate: true });
 
-function handleFileChange(uploadFile: UploadFile, uploadFiles: UploadFiles = []) {
+function extractCover(file: File): Promise<string | null> {
+  return new Promise((resolve) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.muted = true;
+    video.playsInline = true;
+    const objectUrl = URL.createObjectURL(file);
+    video.src = objectUrl;
+
+    video.addEventListener('loadeddata', () => {
+      video.currentTime = 0.1;
+    });
+
+    video.addEventListener('seeked', () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 320;
+        canvas.height = video.videoHeight || 180;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
+        } else {
+          resolve(null);
+        }
+      } catch {
+        resolve(null);
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    });
+
+    video.addEventListener('error', () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(null);
+    });
+
+    const timeout = setTimeout(() => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(null);
+    }, 5000);
+
+    video.addEventListener('seeked', () => { clearTimeout(timeout); }, { once: true });
+    video.addEventListener('error', () => { clearTimeout(timeout); }, { once: true });
+  });
+}
+
+async function handleFileChange(uploadFile: UploadFile, uploadFiles: UploadFiles = []) {
   selectedFile.value = uploadFile.raw ?? null;
   fieldErrors.file = '';
   fileList.value = uploadFiles.length > 0
@@ -79,11 +131,28 @@ function handleFileChange(uploadFile: UploadFile, uploadFiles: UploadFiles = [])
     : selectedFile.value
       ? [{ name: selectedFile.value.name, size: selectedFile.value.size }]
       : [];
+  if (selectedFile.value) {
+    extractCover(selectedFile.value).then((url) => { coverUrl.value = url; });
+  } else {
+    coverUrl.value = null;
+  }
 }
+
+const handleExceed: UploadProps['onExceed'] = (files) => {
+  uploadRef.value?.clearFiles();
+  const file = files[0];
+  if (file) {
+    selectedFile.value = file;
+    fieldErrors.file = '';
+    fileList.value = [{ name: file.name, size: file.size }];
+    extractCover(file).then((url) => { coverUrl.value = url; });
+  }
+};
 
 function handleFileRemove() {
   selectedFile.value = null;
   fileList.value = [];
+  coverUrl.value = null;
   fieldErrors.file = '';
 }
 
@@ -129,6 +198,7 @@ function resetForm() {
   form.tagIds = [];
   selectedFile.value = null;
   fileList.value = [];
+  coverUrl.value = null;
   clearFieldErrors();
 }
 
@@ -246,6 +316,7 @@ defineExpose({ form, fieldErrors, handleFileChange, submit });
 
       <el-form-item label="视频文件" required :error="fieldErrors.file">
         <el-upload
+          ref="uploadRef"
           drag
           action="#"
           accept=".mp4,.webm,.mov,video/mp4,video/webm,video/quicktime"
@@ -255,14 +326,19 @@ defineExpose({ form, fieldErrors, handleFileChange, submit });
           :disabled="submitting"
           :on-change="handleFileChange"
           :on-remove="handleFileRemove"
+          :on-exceed="handleExceed"
           class="video-upload"
         >
           <el-icon class="upload-icon"><UploadFilled /></el-icon>
           <div>拖拽视频到此处，或<em>点击选择</em></div>
           <template #tip>
-            <span class="upload-tip">支持 MP4、WebM、MOV，文件不超过 500 MB</span>
+            <span class="upload-tip">支持 MP4、WebM、MOV，文件不超过 500 MB，只能上传一个视频</span>
           </template>
         </el-upload>
+        <div v-if="coverUrl" class="cover-preview">
+          <img :src="coverUrl" alt="视频封面预览" />
+          <span>视频封面预览</span>
+        </div>
       </el-form-item>
     </el-form>
 
@@ -286,4 +362,7 @@ defineExpose({ form, fieldErrors, handleFileChange, submit });
 .upload-icon { margin-bottom: 10px; color: var(--yl-indigo); font-size: 34px; }
 .video-upload em { color: var(--yl-indigo); font-style: normal; }
 .upload-tip { color: var(--yl-text-muted); font-size: 11px; }
+.cover-preview { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 12px; padding: 10px; background: var(--yl-surface, #f7f8fa); border: 1px solid var(--yl-border, #e4e7ed); border-radius: 8px; }
+.cover-preview img { max-width: 280px; max-height: 158px; border-radius: 4px; object-fit: contain; }
+.cover-preview span { color: var(--yl-text-muted); font-size: 11px; }
 </style>

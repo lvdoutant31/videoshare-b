@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import type { VideoRepository } from '../repository';
+import type { TaxonomyRepository } from '../../taxonomy/model';
 import VideoUploadDialog from './VideoUploadDialog.vue';
 
 const elementStubs = {
@@ -25,7 +26,7 @@ const elementStubs = {
   ElIcon: { template: '<span><slot /></span>' }
 };
 
-function fakeRepository(overrides: Partial<VideoRepository> = {}): VideoRepository {
+function fakeVideoRepository(overrides: Partial<VideoRepository> = {}): VideoRepository {
   return {
     list: vi.fn().mockResolvedValue({ items: [], page: 1, pageSize: 20, total: 0 }),
     get: vi.fn().mockResolvedValue({}),
@@ -39,9 +40,27 @@ function fakeRepository(overrides: Partial<VideoRepository> = {}): VideoReposito
     batchRestore: vi.fn().mockResolvedValue({ succeededIds: [], failed: [] }),
     createSimulatedUpload: vi.fn().mockResolvedValue({}),
     listAuthors: vi.fn().mockResolvedValue([{ id: '7', nickname: '培训组', status: 'NORMAL' }]),
-    listCategories: vi.fn().mockResolvedValue([{ id: '10', name: '培训', status: 'NORMAL' }]),
-    listTags: vi.fn().mockResolvedValue([{ id: '20', name: '安全', status: 'NORMAL' }]),
     uploadDraft: vi.fn().mockResolvedValue({ id: '101' }),
+    ...overrides
+  };
+}
+
+function fakeTaxonomyRepository(overrides: Partial<TaxonomyRepository> = {}): TaxonomyRepository {
+  return {
+    listCategories: vi.fn().mockResolvedValue({
+      items: [{ id: '10', name: '培训', icon: null, sort: 0, status: 'ENABLED', createdAt: '', updatedAt: '' }],
+      page: 1, pageSize: 100, total: 1
+    }),
+    createCategory: vi.fn().mockResolvedValue({}),
+    updateCategory: vi.fn().mockResolvedValue({}),
+    deleteCategory: vi.fn().mockResolvedValue(undefined),
+    listTags: vi.fn().mockResolvedValue({
+      items: [{ id: '20', name: '安全', heatScore: 0, status: 'ENABLED', createdAt: '', updatedAt: '' }],
+      page: 1, pageSize: 100, total: 1
+    }),
+    createTag: vi.fn().mockResolvedValue({}),
+    updateTag: vi.fn().mockResolvedValue({}),
+    deleteTag: vi.fn().mockResolvedValue(undefined),
     ...overrides
   };
 }
@@ -59,9 +78,9 @@ type DialogVm = {
   submit: () => Promise<void>;
 };
 
-function mountDialog(repository: VideoRepository) {
+function mountDialog(repository: VideoRepository, taxonomyRepo?: TaxonomyRepository) {
   return mount(VideoUploadDialog, {
-    props: { modelValue: true, repository },
+    props: { modelValue: true, repository, taxonomyRepository: taxonomyRepo ?? fakeTaxonomyRepository() },
     global: {
       stubs: elementStubs,
       directives: { loading: {} }
@@ -85,9 +104,21 @@ function fillValidForm(vm: DialogVm) {
 }
 
 describe('VideoUploadDialog', () => {
-  it('loads author, category, and tag options only once after a successful load', async () => {
-    const repository = fakeRepository();
-    const wrapper = mountDialog(repository);
+  it('loads author, category, and tag options via respective repositories', async () => {
+    const repository = fakeVideoRepository();
+    const taxonomyRepo = fakeTaxonomyRepository();
+    mountDialog(repository, taxonomyRepo);
+    await flushPromises();
+
+    expect(repository.listAuthors).toHaveBeenCalledTimes(1);
+    expect(taxonomyRepo.listCategories).toHaveBeenCalledWith({ page: 1, pageSize: 100, status: 'ENABLED' });
+    expect(taxonomyRepo.listTags).toHaveBeenCalledWith({ page: 1, pageSize: 100, status: 'ENABLED' });
+  });
+
+  it('caches options and does not reload on re-open', async () => {
+    const repository = fakeVideoRepository();
+    const taxonomyRepo = fakeTaxonomyRepository();
+    const wrapper = mountDialog(repository, taxonomyRepo);
     await flushPromises();
 
     await wrapper.setProps({ modelValue: false });
@@ -95,12 +126,12 @@ describe('VideoUploadDialog', () => {
     await flushPromises();
 
     expect(repository.listAuthors).toHaveBeenCalledTimes(1);
-    expect(repository.listCategories).toHaveBeenCalledTimes(1);
-    expect(repository.listTags).toHaveBeenCalledTimes(1);
+    expect(taxonomyRepo.listCategories).toHaveBeenCalledTimes(1);
+    expect(taxonomyRepo.listTags).toHaveBeenCalledTimes(1);
   });
 
   it('submits a valid draft, trims text, and emits close and refresh events', async () => {
-    const repository = fakeRepository();
+    const repository = fakeVideoRepository();
     const wrapper = mountDialog(repository);
     await flushPromises();
     const vm = wrapper.vm as unknown as DialogVm;
@@ -133,7 +164,7 @@ describe('VideoUploadDialog', () => {
       vm.handleFileChange({ raw: file });
     }]
   ])('blocks %s', async (_label, makeInvalid) => {
-    const repository = fakeRepository();
+    const repository = fakeVideoRepository();
     const wrapper = mountDialog(repository);
     await flushPromises();
     const vm = wrapper.vm as unknown as DialogVm;
@@ -148,7 +179,7 @@ describe('VideoUploadDialog', () => {
   });
 
   it('shows all missing required fields beside their controls', async () => {
-    const repository = fakeRepository();
+    const repository = fakeVideoRepository();
     const wrapper = mountDialog(repository);
     await flushPromises();
 
@@ -163,7 +194,7 @@ describe('VideoUploadDialog', () => {
   });
 
   it('keeps the completed form open when upload fails', async () => {
-    const repository = fakeRepository({ uploadDraft: vi.fn().mockRejectedValue(new Error('保存失败')) });
+    const repository = fakeVideoRepository({ uploadDraft: vi.fn().mockRejectedValue(new Error('保存失败')) });
     const wrapper = mountDialog(repository);
     await flushPromises();
     const vm = wrapper.vm as unknown as DialogVm;

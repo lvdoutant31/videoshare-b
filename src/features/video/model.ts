@@ -46,18 +46,6 @@ export interface AuthorOption {
   status: string;
 }
 
-export interface CategoryOption {
-  id: string;
-  name: string;
-  status: string;
-}
-
-export interface TagOption {
-  id: string;
-  name: string;
-  status: string;
-}
-
 export interface VideoUploadInput {
   authorId: string;
   title: string;
@@ -87,7 +75,5 @@ export interface VideoRepository {
   batchRestore(ids: string[]): Promise<BatchResult>;
   createSimulatedUpload(fileName: string): Promise<Video>;
   listAuthors(): Promise<AuthorOption[]>;
-  listCategories(): Promise<CategoryOption[]>;
-  listTags(): Promise<TagOption[]>;
   uploadDraft(input: VideoUploadInput): Promise<unknown>;
 }
