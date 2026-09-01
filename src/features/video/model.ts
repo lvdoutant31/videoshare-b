@@ -73,7 +73,6 @@ export interface VideoRepository {
   retryTranscode(id: string): Promise<Video | null>;
   batchOffShelf(ids: string[], reason: string): Promise<BatchResult>;
   batchRestore(ids: string[]): Promise<BatchResult>;
-  createSimulatedUpload(fileName: string): Promise<Video>;
   listAuthors(): Promise<AuthorOption[]>;
   uploadDraft(input: VideoUploadInput): Promise<unknown>;
 }

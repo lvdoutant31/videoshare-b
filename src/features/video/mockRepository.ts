@@ -1,5 +1,5 @@
 import { VideoRepositoryError } from './repository';
-import type { BatchResult, Video, VideoPage, VideoQuery, VideoRepository, VideoUpdate } from './model';
+import type { BatchResult, Video, VideoCreate, VideoPage, VideoQuery, VideoRepository, VideoUpdate } from './model';
 
 const time = '2026-08-27T08:00:00.000Z';
 const clone = <T>(value: T): T => structuredClone(value);
@@ -21,14 +21,13 @@ export function createMockVideoRepository(): VideoRepository {
   return {
     async list(query: VideoQuery): Promise<VideoPage> { const result = videos.filter((item) => (!query.keyword || `${item.id}${item.title}${item.author}`.includes(query.keyword)) && (!query.status || item.status === query.status) && (!query.category || item.category === query.category)).sort((a, b) => Number(b.id) - Number(a.id)); const start = (query.page - 1) * query.pageSize; return { items: clone(result.slice(start, start + query.pageSize)), page: query.page, pageSize: query.pageSize, total: result.length }; },
     async get(id) { return clone(find(id)); },
-    async create(input) { const video = await this.createSimulatedUpload(input.title); return update(video.id, { title: input.title, description: input.description ?? '', visibility: input.visibility ?? 'PUBLIC' }); },
+    async create(input: VideoCreate) { const video: Video = { id: String(nextId++), title: input.title, author: '当前管理员', category: '未分类', tags: [], status: 'DRAFT', visibility: input.visibility ?? 'PUBLIC', durationSeconds: 0, playCount: 0, interactionCount: 0, createdAt: time, updatedAt: time, publishedAt: null, description: input.description ?? '', previewUrl: null }; videos.push(video); return clone(video); },
     async update(id, input: VideoUpdate) { if (!input.title.trim()) throw new VideoRepositoryError('标题不能为空', { code: 'VALIDATION_FAILED' }); return update(id, { ...input, title: input.title.trim() }); },
     async submitReview(id) { const item = find(id); if (!['DRAFT', 'REJECTED'].includes(item.status)) throw new VideoRepositoryError('当前状态不能提交审核', { code: 'INVALID_STATUS' }); return update(id, { status: 'PENDING_REVIEW' }); },
     async offShelf(id, reason) { const item = find(id); if (item.status !== 'PUBLISHED') throw new VideoRepositoryError('仅已发布视频可以下架', { code: 'INVALID_STATUS' }); if (!reason.trim()) throw new VideoRepositoryError('请输入下架原因', { code: 'VALIDATION_FAILED' }); return update(id, { status: 'OFF_SHELF', offShelfReason: reason.trim() }); },
     async restore(id) { const item = find(id); if (item.status !== 'OFF_SHELF') throw new VideoRepositoryError('仅已下架视频可以恢复', { code: 'INVALID_STATUS' }); return update(id, { status: 'PUBLISHED', offShelfReason: undefined, publishedAt: time }); },
     async retryTranscode(id) { const item = find(id); if (item.status !== 'TRANSCODE_FAILED') throw new VideoRepositoryError('当前没有失败的转码任务', { code: 'INVALID_STATUS' }); return update(id, { status: 'TRANSCODING', transcodeError: undefined }); },
     batchOffShelf(ids, reason) { if (!reason.trim()) throw new VideoRepositoryError('请输入下架原因', { code: 'VALIDATION_FAILED' }); return batch(ids, 'PUBLISHED', reason); },
-    batchRestore(ids) { return batch(ids, 'OFF_SHELF'); },
-    async createSimulatedUpload(fileName) { const video: Video = { id: String(nextId++), title: fileName.replace(/\.[^.]+$/, '') || '未命名视频', author: '当前管理员', category: '未分类', tags: [], status: 'DRAFT', visibility: 'INTERNAL', durationSeconds: 0, playCount: 0, interactionCount: 0, createdAt: time, updatedAt: time, publishedAt: null, description: '本地模拟上传创建的草稿，未上传至服务器。', previewUrl: null, isSimulated: true }; videos.push(video); return clone(video); }
+    batchRestore(ids) { return batch(ids, 'OFF_SHELF'); }
   };
 }

@@ -38,7 +38,6 @@ function fakeVideoRepository(overrides: Partial<VideoRepository> = {}): VideoRep
     retryTranscode: vi.fn().mockResolvedValue(null),
     batchOffShelf: vi.fn().mockResolvedValue({ succeededIds: [], failed: [] }),
     batchRestore: vi.fn().mockResolvedValue({ succeededIds: [], failed: [] }),
-    createSimulatedUpload: vi.fn().mockResolvedValue({}),
     listAuthors: vi.fn().mockResolvedValue([{ id: '7', nickname: '培训组', status: 'NORMAL' }]),
     uploadDraft: vi.fn().mockResolvedValue({ id: '101' }),
     ...overrides

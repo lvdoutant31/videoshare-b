@@ -46,7 +46,6 @@ export function createHttpVideoRepository(baseUrl = '', fetcher: Fetcher = globa
     retryTranscode(value) { return request<null>(fetcher, endpoint(`/${id(value)}/transcodes/720P/retry`), json('POST')); },
     batchOffShelf(ids, reason) { return request<BatchResult>(fetcher, endpoint('/batch/off-shelf'), json('POST', { videoIds: ids, reason })); },
     batchRestore(ids) { return request<BatchResult>(fetcher, endpoint('/batch/restore'), json('POST', { videoIds: ids })); },
-    async createSimulatedUpload() { throw new VideoRepositoryError('真实接口模式暂不支持上传，请等待媒体上传服务就绪'); },
     async listAuthors() { const page = await request<{ items: AuthorOption[] }>(fetcher, `${baseUrl}/api/v1/admin/users?page=1&pageSize=100&status=NORMAL`); return page.items; },
     uploadDraft(input: VideoUploadInput) { const body = new FormData(); body.append('authorId', input.authorId); body.append('title', input.title); if (input.description) body.append('description', input.description); input.categoryIds.forEach((id) => body.append('categoryIds', id)); input.tagIds.forEach((id) => body.append('tagIds', id)); body.append('visibility', 'PUBLIC'); body.append('file', input.file); return request<unknown>(fetcher, endpoint(), { method: 'POST', body }); }
   };
