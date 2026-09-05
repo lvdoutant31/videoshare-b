@@ -1,1 +1,87 @@
 <!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>映流运营后台</title></head><body><div id="app"></div><script type="module" src="/src/main.ts"></script></body></html>
+<!-- <!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>服务端生成签名上传文件到OSS</title>
+</head>
+<body>
+<div class="container">
+    <form>
+        <div class="mb-3">
+            <label for="file" class="form-label">选择文件:</label>
+            <input type="file" class="form-control" id="file" name="file" required />
+        </div>
+        <button type="submit" class="btn btn-primary">上传</button>
+    </form>
+</div>
+<script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.querySelector("form");
+    const fileInput = document.querySelector("#file");
+    form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const file = fileInput.files[0];
+        if (!file) {
+            alert('请选择一个文件再上传。');
+            return;
+        }
+        const filename = file.name;
+        const objectKey = 'dir/' + filename;
+        const signatureUrl = `/api/get_post_signature_for_oss_upload?key=${encodeURIComponent(objectKey)}`;
+        fetch(signatureUrl, { method: "GET" })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error("获取签名失败");
+                }
+                return response.json();
+            })
+            .then((data) => {
+             
+                const objectKey = `dir/${file.name}`; 
+                let formData = new FormData();
+                formData.append('key', data.key);
+                formData.append('policy', data.policy);
+                formData.append('x-oss-signature', data.signature);          // 注意字段名映射
+                formData.append('x-oss-signature-version', data.signature_version);    // 注意字段名映射
+                formData.append('x-oss-credential', data.credential);  // 注意字段名映射
+                formData.append('x-oss-date', data.date);              // 注意字段名映射
+                formData.append('x-oss-security-token', data.security_token);// 注意字段名映射
+                formData.append('success_action_status', '200');             // 必须与 Policy 一致
+
+                //  重要：file 字段必须放在最后！
+                formData.append('file', file); 
+                console.log(data);
+                return fetch("https://videoshare.oss-cn-wuhan-lr.aliyuncs.com/", { 
+                    method: "POST",
+                    body: formData
+                });
+            })
+            .then((response) => {
+                if (response.ok) {
+                    console.log("上传成功");
+                    alert("文件已上传");
+                } else {
+                    console.log("上传失败", response);
+                    alert("上传失败，请稍后再试");
+                }
+            })
+            .catch((error) => {
+                console.error("发生错误:", error);
+            });
+    });
+});
+</script>
+</body>
+</html> -->
+<!-- 视频上传
+1.上传file、fields到后端
+2.获取oss签名
+3.通过签名上传视频
+4.回调接口获取url、视频预览 （配置域名到阿里云）x
+5.fields和url存进数据库
+6.返回 -->
+
+
+

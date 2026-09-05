@@ -1,5 +1,5 @@
 import { VideoRepositoryError } from './repository';
-import type { BatchResult, Video, VideoCreate, VideoPage, VideoQuery, VideoRepository, VideoUpdate } from './model';
+import type { AuthorOption, BatchResult, Video, VideoCreate, VideoPage, VideoQuery, VideoRepository, VideoUpdate, VideoUploadInput } from './model';
 
 const time = '2026-08-27T08:00:00.000Z';
 const clone = <T>(value: T): T => structuredClone(value);
@@ -28,6 +28,8 @@ export function createMockVideoRepository(): VideoRepository {
     async restore(id) { const item = find(id); if (item.status !== 'OFF_SHELF') throw new VideoRepositoryError('仅已下架视频可以恢复', { code: 'INVALID_STATUS' }); return update(id, { status: 'PUBLISHED', offShelfReason: undefined, publishedAt: time }); },
     async retryTranscode(id) { const item = find(id); if (item.status !== 'TRANSCODE_FAILED') throw new VideoRepositoryError('当前没有失败的转码任务', { code: 'INVALID_STATUS' }); return update(id, { status: 'TRANSCODING', transcodeError: undefined }); },
     batchOffShelf(ids, reason) { if (!reason.trim()) throw new VideoRepositoryError('请输入下架原因', { code: 'VALIDATION_FAILED' }); return batch(ids, 'PUBLISHED', reason); },
-    batchRestore(ids) { return batch(ids, 'OFF_SHELF'); }
+    batchRestore(ids) { return batch(ids, 'OFF_SHELF'); },
+    async listAuthors(): Promise<AuthorOption[]> { return []; },
+    async uploadDraft(_input: VideoUploadInput) { return { id: 'mock-upload' }; }
   };
 }

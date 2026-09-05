@@ -8,6 +8,7 @@ export const router = createRouter({
     { path: '/', redirect: '/dashboard' },
     { path: '/dashboard', name: 'dashboard', component: () => import('./views/DashboardView.vue') },
     { path: '/videos', name: 'videos', component: () => import('./views/VideoManagementView.vue') },
+    { path: '/oss-upload-test', name: 'oss-upload-test', component: () => import('./views/OssUploadTestView.vue') },
     { path: '/reviews', name: 'reviews', component: () => import('./views/VideoReviewManagementView.vue') },
     { path: '/users', name: 'users', component: () => import('./views/UserManagementView.vue') },
     { path: '/comments', name: 'comments', component: () => import('./views/CommentReportManagementView.vue'), props: { resource: 'comments' } },

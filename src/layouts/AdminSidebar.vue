@@ -27,6 +27,7 @@ interface NavigationItem {
 const navigation: NavigationItem[] = [
   { label: '工作台', icon: DataBoard, to: '/dashboard' },
   { label: '视频管理', icon: VideoCamera, to: '/videos' },
+  { label: 'OSS上传测试', icon: Setting, to: '/oss-upload-test' },
   { label: '审核管理', icon: Checked, to: '/reviews' },
   { label: '用户管理', icon: User, to: '/users' },
   { label: '评论与举报', icon: ChatDotRound, to: '/comments', activePaths: ['/comments', '/reports'] },

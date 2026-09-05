@@ -35,7 +35,6 @@ export interface AdminUserQuery {
 export interface CreateAdminInput {
   username: string;
   password: string;
-  roleCodes: string[];
 }
 
 export interface AdminRepository {
