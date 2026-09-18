@@ -1,8 +1,21 @@
 import { flushPromises, mount } from '@vue/test-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VideoRepository } from '../repository';
 import type { TaxonomyRepository } from '../../taxonomy/model';
 import VideoUploadDialog from './VideoUploadDialog.vue';
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  vi.stubGlobal('URL', class extends URL {
+    static createObjectURL = vi.fn(() => 'blob:test-video');
+    static revokeObjectURL = vi.fn();
+  });
+});
+afterEach(() => {
+  vi.clearAllTimers();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 const elementStubs = {
   ElDialog: {
@@ -33,11 +46,13 @@ function fakeVideoRepository(overrides: Partial<VideoRepository> = {}): VideoRep
     create: vi.fn().mockResolvedValue({}),
     update: vi.fn().mockResolvedValue({}),
     submitReview: vi.fn().mockResolvedValue({}),
+    publish: vi.fn().mockResolvedValue({}),
     offShelf: vi.fn().mockResolvedValue({}),
     restore: vi.fn().mockResolvedValue({}),
     retryTranscode: vi.fn().mockResolvedValue(null),
     batchOffShelf: vi.fn().mockResolvedValue({ succeededIds: [], failed: [] }),
     batchRestore: vi.fn().mockResolvedValue({ succeededIds: [], failed: [] }),
+    batchDelete: vi.fn().mockResolvedValue({ succeededIds: [], failed: [] }),
     listAuthors: vi.fn().mockResolvedValue([{ id: '7', nickname: '培训组', status: 'NORMAL' }]),
     uploadDraft: vi.fn().mockResolvedValue({ id: '101' }),
     ...overrides
@@ -66,7 +81,6 @@ function fakeTaxonomyRepository(overrides: Partial<TaxonomyRepository> = {}): Ta
 
 type DialogVm = {
   form: {
-    authorId: string;
     title: string;
     description: string;
     categoryIds: string[];
@@ -93,7 +107,6 @@ function validFile() {
 
 function fillValidForm(vm: DialogVm) {
   Object.assign(vm.form, {
-    authorId: '7',
     title: ' 安全培训 ',
     description: ' 简介 ',
     categoryIds: ['10'],
@@ -103,13 +116,13 @@ function fillValidForm(vm: DialogVm) {
 }
 
 describe('VideoUploadDialog', () => {
-  it('loads author, category, and tag options via respective repositories', async () => {
+  it('loads taxonomy options without offering an author selection', async () => {
     const repository = fakeVideoRepository();
     const taxonomyRepo = fakeTaxonomyRepository();
     mountDialog(repository, taxonomyRepo);
     await flushPromises();
 
-    expect(repository.listAuthors).toHaveBeenCalledTimes(1);
+    expect(repository.listAuthors).not.toHaveBeenCalled();
     expect(taxonomyRepo.listCategories).toHaveBeenCalledWith({ page: 1, pageSize: 100, status: 'ENABLED' });
     expect(taxonomyRepo.listTags).toHaveBeenCalledWith({ page: 1, pageSize: 100, status: 'ENABLED' });
   });
@@ -124,7 +137,7 @@ describe('VideoUploadDialog', () => {
     await wrapper.setProps({ modelValue: true });
     await flushPromises();
 
-    expect(repository.listAuthors).toHaveBeenCalledTimes(1);
+    expect(repository.listAuthors).not.toHaveBeenCalled();
     expect(taxonomyRepo.listCategories).toHaveBeenCalledTimes(1);
     expect(taxonomyRepo.listTags).toHaveBeenCalledTimes(1);
   });
@@ -139,8 +152,7 @@ describe('VideoUploadDialog', () => {
     await vm.submit();
 
     expect(repository.uploadDraft).toHaveBeenCalledWith({
-      authorId: '7',
-      title: '安全培训',
+        title: '安全培训',
       description: '简介',
       categoryIds: ['10'],
       tagIds: ['20'],
@@ -151,7 +163,6 @@ describe('VideoUploadDialog', () => {
   });
 
   it.each([
-    ['empty author', (vm: DialogVm) => { vm.form.authorId = ''; }],
     ['blank title', (vm: DialogVm) => { vm.form.title = '   '; }],
     ['missing category', (vm: DialogVm) => { vm.form.categoryIds = []; }],
     ['too many categories', (vm: DialogVm) => { vm.form.categoryIds = ['1', '2', '3', '4']; }],
@@ -169,6 +180,7 @@ describe('VideoUploadDialog', () => {
     const vm = wrapper.vm as unknown as DialogVm;
     fillValidForm(vm);
     makeInvalid(vm);
+    await flushPromises();
 
     await vm.submit();
 
@@ -185,7 +197,6 @@ describe('VideoUploadDialog', () => {
     await (wrapper.vm as unknown as DialogVm).submit();
 
     expect(wrapper.findAll('[data-testid="field-error"]').map((item) => item.text())).toEqual([
-      '请选择作者',
       '请输入视频标题',
       '请选择 1–3 个分类',
       '请选择视频文件'

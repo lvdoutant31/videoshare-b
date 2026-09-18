@@ -25,7 +25,7 @@ describe('OSS test repository', () => {
 
     expect(fetcher).toHaveBeenCalledTimes(1);
     const [url, options] = fetcher.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe('/api/v1/admin/test/oss/upload');
+    expect(url).toBe('/videoshare/api/v1/admin/test/oss/upload');
     expect(options.method).toBe('POST');
     expect(options.credentials).toBe('include');
     expect(options.headers).toBeUndefined();

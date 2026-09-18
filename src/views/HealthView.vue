@@ -18,7 +18,7 @@ const service = ref('');
 
 async function checkHealth() {
   try {
-    const result = await getHealth(import.meta.env.VITE_API_BASE_URL ?? '', '/api/v1/admin/health');
+    const result = await getHealth(import.meta.env.VITE_API_BASE_URL ?? '/videoshare', '/api/v1/admin/health');
     service.value = result.data.service;
     state.value = 'ready';
   } catch {

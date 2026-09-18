@@ -3,7 +3,8 @@ interface Envelope<T> { code: string; message?: string; data?: T; traceId?: stri
 export class OssTestError extends Error { constructor(message: string, readonly code?: string, readonly traceId?: string) { super(message); this.name = 'OssTestError'; } }
 export async function uploadOssTest(file: File, fetcher: typeof fetch = globalThis.fetch.bind(globalThis)) {
   const body = new FormData(); body.append('file', file);
-  const response = await fetcher('/api/v1/admin/test/oss/upload', { method: 'POST', credentials: 'include', body });
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/videoshare';
+  const response = await fetcher(`${apiBaseUrl}/api/v1/admin/test/oss/upload`, { method: 'POST', credentials: 'include', body });
   let envelope: Envelope<OssTestResult>;
   try { envelope = await response.json() as Envelope<OssTestResult>; } catch { throw new OssTestError('服务器返回了无效响应'); }
   if (!response.ok || envelope.code !== 'OK' || !envelope.data) throw new OssTestError(envelope.message || 'OSS 上传失败', envelope.code, envelope.traceId);

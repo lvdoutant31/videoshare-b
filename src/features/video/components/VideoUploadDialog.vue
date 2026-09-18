@@ -3,7 +3,7 @@ import { UploadFilled } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import type { UploadFile, UploadFiles, UploadProps, UploadUserFile } from 'element-plus';
 import { reactive, ref, shallowRef, watch } from 'vue';
-import type { AuthorOption } from '../model';
+import { authState } from '../../auth/repository';
 import type { VideoRepository } from '../repository';
 import type { TaxonomyRepository } from '../../taxonomy/model';
 
@@ -23,7 +23,6 @@ const ALLOWED_EXTENSIONS = new Set(['mp4', 'webm', 'mov']);
 const ALLOWED_CONTENT_TYPES = new Set(['video/mp4', 'video/webm', 'video/quicktime']);
 
 const form = reactive({
-  authorId: '',
   title: '',
   description: '',
   categoryIds: [] as string[],
@@ -32,7 +31,6 @@ const form = reactive({
 const selectedFile = shallowRef<File | null>(null);
 const fileList = ref<UploadUserFile[]>([]);
 const coverUrl = ref<string | null>(null);
-const authors = ref<AuthorOption[]>([]);
 const categories = ref<{ id: string; name: string }[]>([]);
 const tags = ref<{ id: string; name: string }[]>([]);
 const loadingOptions = ref(false);
@@ -42,7 +40,6 @@ const submitting = ref(false);
 const uploadRef = ref<InstanceType<typeof import('element-plus')['ElUpload']>>();
 
 const fieldErrors = reactive({
-  authorId: '',
   title: '',
   description: '',
   categoryIds: '',
@@ -55,12 +52,10 @@ async function loadOptions(force = false) {
   loadingOptions.value = true;
   optionsError.value = '';
   try {
-    const [authorItems, categoryPage, tagPage] = await Promise.all([
-      props.repository.listAuthors(),
+    const [categoryPage, tagPage] = await Promise.all([
       props.taxonomyRepository.listCategories({ page: 1, pageSize: 100, status: 'ENABLED' }),
       props.taxonomyRepository.listTags({ page: 1, pageSize: 100, status: 'ENABLED' })
     ]);
-    authors.value = authorItems;
     categories.value = categoryPage.items.map((c) => ({ id: c.id, name: c.name }));
     tags.value = tagPage.items.map((t) => ({ id: t.id, name: t.name }));
     optionsLoaded.value = true;
@@ -162,7 +157,6 @@ function clearFieldErrors() {
   });
 }
 
-watch(() => form.authorId, () => { fieldErrors.authorId = ''; });
 watch(() => form.title, () => { fieldErrors.title = ''; });
 watch(() => form.description, () => { fieldErrors.description = ''; });
 watch(() => form.categoryIds.length, () => { fieldErrors.categoryIds = ''; });
@@ -171,7 +165,6 @@ watch(() => form.tagIds.length, () => { fieldErrors.tagIds = ''; });
 function validateForm() {
   clearFieldErrors();
   const title = form.title.trim();
-  if (!form.authorId) fieldErrors.authorId = '请选择作者';
   if (!title) fieldErrors.title = '请输入视频标题';
   else if (title.length > 120) fieldErrors.title = '视频标题不能超过 120 个字符';
   if (form.description.length > 2000) fieldErrors.description = '视频简介不能超过 2000 个字符';
@@ -191,7 +184,6 @@ function validateForm() {
 }
 
 function resetForm() {
-  form.authorId = '';
   form.title = '';
   form.description = '';
   form.categoryIds = [];
@@ -221,7 +213,6 @@ async function submit() {
   submitting.value = true;
   try {
     await props.repository.uploadDraft({
-      authorId: form.authorId,
       title: form.title.trim(),
       description: form.description.trim(),
       categoryIds: [...form.categoryIds],
@@ -265,10 +256,8 @@ defineExpose({ form, fieldErrors, handleFileChange, submit });
     </el-alert>
 
     <el-form label-position="top" :model="form" v-loading="loadingOptions">
-      <el-form-item label="作者" required :error="fieldErrors.authorId">
-        <el-select v-model="form.authorId" placeholder="请选择作者" filterable class="full-width">
-          <el-option v-for="author in authors" :key="author.id" :label="author.nickname" :value="author.id" />
-        </el-select>
+      <el-form-item label="作者">
+        <el-input :model-value="authState.session?.username ?? '当前登录用户'" readonly />
       </el-form-item>
 
       <el-form-item label="标题" required :error="fieldErrors.title">
@@ -350,7 +339,7 @@ defineExpose({ form, fieldErrors, handleFileChange, submit });
         :loading="submitting"
         :disabled="loadingOptions || !!optionsError"
         @click="submit"
-      >上传并创建草稿</el-button>
+      >上传视频</el-button>
     </template>
   </el-dialog>
 </template>

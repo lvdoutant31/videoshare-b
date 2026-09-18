@@ -5,7 +5,7 @@ import { ElMessage } from 'element-plus';
 import { authState, createAdminAuthRepository } from '../features/auth/repository';
 
 const router = useRouter();
-const authRepository = createAdminAuthRepository(import.meta.env.VITE_API_BASE_URL ?? '');
+const authRepository = createAdminAuthRepository(import.meta.env.VITE_API_BASE_URL ?? '/videoshare');
 
 defineProps<{ updatedAt?: string; pageTitle?: string; pageSubtitle?: string }>();
 
@@ -72,4 +72,3 @@ p { margin: 3px 0 0; color: var(--yl-text-muted); font-size: 11px; }
 .operator-copy small { color:var(--yl-text-muted); font-size:9px; }
 @media (max-width: 1280px) { .operator-copy { display:none; } }
 </style>
-

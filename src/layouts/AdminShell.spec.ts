@@ -1,9 +1,11 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import AdminShell from './AdminShell.vue';
+import { authState } from '../features/auth/repository';
 
 describe('AdminShell', () => {
   it('collapses the sidebar while preserving the active dashboard item', async () => {
+    authState.session = { id: '1', username: 'admin', permissions: ['dashboard:view'] };
     const wrapper = mount(AdminShell, {
       slots: { default: '<div>内容</div>' },
       global: {

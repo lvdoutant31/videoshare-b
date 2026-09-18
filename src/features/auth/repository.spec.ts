@@ -7,6 +7,18 @@ const ok = (data: unknown) => new Response(JSON.stringify({ code: 'OK', data }),
 });
 
 describe('admin auth repository', () => {
+  it('uses the videoshare context by default', async () => {
+    const fetcher = vi.fn().mockResolvedValue(ok({ id: '9000001', username: 'local-admin', permissions: [] }));
+    const repository = createAdminAuthRepository(undefined, fetcher);
+
+    await repository.login('local-admin', 'local-admin-password');
+
+    expect(fetcher).toHaveBeenCalledWith('/videoshare/api/v1/admin/auth/login', expect.objectContaining({
+      method: 'POST',
+      credentials: 'include'
+    }));
+  });
+
   it('uses credentialed requests for login, session recovery, and logout', async () => {
     const fetcher = vi.fn()
       .mockResolvedValueOnce(ok({ id: '9000001', username: 'local-admin', permissions: ['user:view'] }))

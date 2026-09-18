@@ -23,12 +23,19 @@ export function createMockVideoRepository(): VideoRepository {
     async get(id) { return clone(find(id)); },
     async create(input: VideoCreate) { const video: Video = { id: String(nextId++), title: input.title, author: '当前管理员', category: '未分类', tags: [], status: 'DRAFT', visibility: input.visibility ?? 'PUBLIC', durationSeconds: 0, playCount: 0, interactionCount: 0, createdAt: time, updatedAt: time, publishedAt: null, description: input.description ?? '', previewUrl: null }; videos.push(video); return clone(video); },
     async update(id, input: VideoUpdate) { if (!input.title.trim()) throw new VideoRepositoryError('标题不能为空', { code: 'VALIDATION_FAILED' }); return update(id, { ...input, title: input.title.trim() }); },
-    async submitReview(id) { const item = find(id); if (!['DRAFT', 'REJECTED'].includes(item.status)) throw new VideoRepositoryError('当前状态不能提交审核', { code: 'INVALID_STATUS' }); return update(id, { status: 'PENDING_REVIEW' }); },
+    async publish(id) { const item = find(id); if (item.status !== 'APPROVED') throw new VideoRepositoryError('仅待发布视频可以发布', { code: 'INVALID_STATUS' }); return update(id, { status: 'PUBLISHED', auditStatus: 'APPROVED', publishStatus: 'PUBLISHED', publishedAt: time }); },
+    async submitReview(id) { const item = find(id); if (!['DRAFT', 'REJECTED', 'REVISION_REQUIRED'].includes(item.status)) throw new VideoRepositoryError('当前状态不能提交审核', { code: 'INVALID_STATUS' }); return update(id, { status: 'PENDING_REVIEW' }); },
     async offShelf(id, reason) { const item = find(id); if (item.status !== 'PUBLISHED') throw new VideoRepositoryError('仅已发布视频可以下架', { code: 'INVALID_STATUS' }); if (!reason.trim()) throw new VideoRepositoryError('请输入下架原因', { code: 'VALIDATION_FAILED' }); return update(id, { status: 'OFF_SHELF', offShelfReason: reason.trim() }); },
     async restore(id) { const item = find(id); if (item.status !== 'OFF_SHELF') throw new VideoRepositoryError('仅已下架视频可以恢复', { code: 'INVALID_STATUS' }); return update(id, { status: 'PUBLISHED', offShelfReason: undefined, publishedAt: time }); },
     async retryTranscode(id) { const item = find(id); if (item.status !== 'TRANSCODE_FAILED') throw new VideoRepositoryError('当前没有失败的转码任务', { code: 'INVALID_STATUS' }); return update(id, { status: 'TRANSCODING', transcodeError: undefined }); },
     batchOffShelf(ids, reason) { if (!reason.trim()) throw new VideoRepositoryError('请输入下架原因', { code: 'VALIDATION_FAILED' }); return batch(ids, 'PUBLISHED', reason); },
     batchRestore(ids) { return batch(ids, 'OFF_SHELF'); },
+    async batchDelete(ids: string[], reason: string): Promise<BatchResult> {
+      if (!reason.trim()) throw new VideoRepositoryError('请输入删除原因', { code: 'VALIDATION_FAILED' });
+      const succeededIds: string[] = []; const failed: BatchResult['failed'] = [];
+      for (const id of ids) { try { find(id); videos = videos.filter((item) => item.id !== id); succeededIds.push(id); } catch (caught) { if (caught instanceof VideoRepositoryError) failed.push({ id, message: caught.message }); } }
+      return { succeededIds, failed };
+    },
     async listAuthors(): Promise<AuthorOption[]> { return []; },
     async uploadDraft(_input: VideoUploadInput) { return { id: 'mock-upload' }; }
   };

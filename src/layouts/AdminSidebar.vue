@@ -30,6 +30,7 @@ const navigation: NavigationItem[] = [
   { label: 'OSS上传测试', icon: Setting, to: '/oss-upload-test' },
   { label: '审核管理', icon: Checked, to: '/reviews' },
   { label: '用户管理', icon: User, to: '/users' },
+  { label: '管理员管理', icon: User, to: '/admins' },
   { label: '评论与举报', icon: ChatDotRound, to: '/comments', activePaths: ['/comments', '/reports'] },
   { label: '分类管理', icon: Setting, to: '/system/categories' },
   { label: '标签管理', icon: Setting, to: '/system/tags' },
