@@ -22,6 +22,7 @@ describe('CommentReportManagementView', () => {
     await flushPromises();
     expect(wrapper.text()).toContain('评论管理');
     expect(wrapper.text()).toContain('这类内容没有实际帮助。');
+    expect(wrapper.text()).toContain('车间安全巡检规范');
   });
 
   it('loads the report handling queue', async () => {
