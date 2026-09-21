@@ -35,6 +35,13 @@ describe('comment report HTTP repository', () => {
     expect(fetcher.mock.calls[1][0]).toBe('/api/v1/admin/reports?page=2&pageSize=10&status=PENDING');
   });
 
+  it('defaults missing comment detail collections to empty arrays', async () => {
+    const fetcher = vi.fn().mockResolvedValue(response({ code: 'OK', data: { id: 1, content: '测试评论' } }));
+    const repository = createHttpCommentReportRepository('', fetcher);
+
+    await expect(repository.getComment('1')).resolves.toMatchObject({ id: '1', replies: [], history: [] });
+  });
+
   it('sends moderation actions to the backend', async () => {
     const fetcher = vi.fn().mockImplementation(() => response({ code: 'OK', data: {} }));
     const repository = createHttpCommentReportRepository('', fetcher);

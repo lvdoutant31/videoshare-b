@@ -24,11 +24,12 @@ const historyAction = (action: string): ReviewHistory['action'] => action === 'C
 
 function toTask(detail: ApiDetail, history: ApiHistory[] = []): ReviewTask {
   const status = statusOf(detail.auditStatus);
+  const claimant = history.find((entry) => entry.action === 'CLAIMED')?.reviewerAdminId;
   return {
     id: detail.id, videoId: detail.id, title: detail.title, author: detail.authorNickname, category: detail.categories?.[0]?.name ?? '--',
     tags: detail.tags?.map((tag) => tag.name) ?? [], description: detail.description ?? '', durationSeconds: 0, submittedAt: detail.createdAt,
     status, riskLevel: (detail.riskLevel ?? 'LOW') as ReviewTask['riskLevel'], findings: [] as ReviewFinding[],
-    claimedBy: status === 'CLAIMED' ? '当前审核员' : null, claimToken: null, version: detail.currentVersion,
+    claimedBy: status === 'CLAIMED' ? (claimant ? `管理员 ${claimant}` : '未知审核员') : null, claimToken: null, version: detail.currentVersion,
     history: history.map((entry) => ({ action: historyAction(entry.action), operator: entry.reviewerAdminId ?? '系统', createdAt: entry.createdAt, reason: entry.reason ?? undefined }))
   };
 }

@@ -62,6 +62,14 @@ function normalizeIds<T>(value: T): T {
   return result as T;
 }
 
+function normalizeCommentDetail(detail: ManagedCommentDetail): ManagedCommentDetail {
+  return {
+    ...detail,
+    replies: Array.isArray(detail.replies) ? detail.replies : [],
+    history: Array.isArray(detail.history) ? detail.history : []
+  };
+}
+
 export function createHttpCommentReportRepository(baseUrl = '', fetcher: Fetcher = globalThis.fetch.bind(globalThis)): CommentReportRepository {
   const commentsRoot = `${baseUrl}/api/v1/admin/comments`;
   const reportsRoot = `${baseUrl}/api/v1/admin/reports`;
@@ -83,16 +91,16 @@ export function createHttpCommentReportRepository(baseUrl = '', fetcher: Fetcher
       return requestData<PageResult<ManagedComment>>(fetcher, `${commentsRoot}?${params}`);
     },
     getComment(commentId) {
-      return requestData<ManagedCommentDetail>(fetcher, `${commentsRoot}/${id(commentId)}`);
+      return requestData<ManagedCommentDetail>(fetcher, `${commentsRoot}/${id(commentId)}`).then(normalizeCommentDetail);
     },
     hideComment(commentId, reason) {
-      return requestData<ManagedCommentDetail>(fetcher, `${commentsRoot}/${id(commentId)}/hide`, json('POST', { reason }));
+      return requestData<ManagedCommentDetail>(fetcher, `${commentsRoot}/${id(commentId)}/hide`, json('POST', { reason })).then(normalizeCommentDetail);
     },
     restoreComment(commentId) {
-      return requestData<ManagedCommentDetail>(fetcher, `${commentsRoot}/${id(commentId)}/restore`, json('POST'));
+      return requestData<ManagedCommentDetail>(fetcher, `${commentsRoot}/${id(commentId)}/restore`, json('POST')).then(normalizeCommentDetail);
     },
     deleteComment(commentId, reason) {
-      return requestData<ManagedCommentDetail>(fetcher, `${commentsRoot}/${id(commentId)}`, json('DELETE', { reason }));
+      return requestData<ManagedCommentDetail>(fetcher, `${commentsRoot}/${id(commentId)}`, json('DELETE', { reason })).then(normalizeCommentDetail);
     },
     async batchHandleComments(commentIds, status, reason) {
       await requestData<null>(fetcher, `${commentsRoot}/batch`, json('POST', { ids: commentIds.map((value) => String(value)), status, reason }));
