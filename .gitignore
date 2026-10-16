@@ -1,0 +1,27 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+.env
+.env.local
+.env.*.local
+
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local tools and temporary output
+/.agents/
+/.codex-patches/
+/.patch-work/
+/.obsidian/
+/.codebase-memory/
+/tmp/
+/output/
+*.log
+*.pem
+*.key
+*.p12
+*.pfx
