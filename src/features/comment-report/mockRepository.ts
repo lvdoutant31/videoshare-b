@@ -1,5 +1,6 @@
 import type { CommentQuery, CommentReportRepository, ContentReport, ContentReportDetail, ManagedComment, ManagedCommentDetail, ModerationHistory, ReportQuery } from './model';
 import { CommentReportRepositoryError } from './repository';
+import { authState } from '../auth/repository';
 
 const now = '2026-08-28T08:00:00.000Z';
 const clone = <T>(value: T): T => structuredClone(value);
@@ -17,7 +18,7 @@ export function createMockCommentReportRepository(): CommentReportRepository {
   ];
   let reports: ContentReportDetail[] = [
     { id: 'report-201', targetType: 'COMMENT', targetId: 'comment-101', targetSummary: '这类内容没有实际帮助。', reporter: '陈思远', reason: '人身攻击或不友善内容', riskLevel: 'MEDIUM', status: 'PENDING', assignee: null, createdAt: '2026-08-28T06:00:00.000Z', resolution: null, targetSnapshot: '视频《车间安全巡检规范》下的评论：这类内容没有实际帮助。', history: [{ action: '提交举报', operator: '陈思远', createdAt: '2026-08-28T06:00:00.000Z' }] },
-    { id: 'report-202', targetType: 'VIDEO', targetId: 'video-502', targetSummary: '设备点检实操演示', reporter: '林晓雯', reason: '疑似违规营销', riskLevel: 'HIGH', status: 'PROCESSING', assignee: '当前管理员', createdAt: '2026-08-28T03:40:00.000Z', resolution: null, targetSnapshot: '视频标题：设备点检实操演示；举报说明：疑似违规营销。', history: [{ action: '领取', operator: '当前管理员', createdAt: '2026-08-28T04:00:00.000Z' }] },
+    { id: 'report-202', targetType: 'VIDEO', targetId: 'video-502', targetSummary: '设备点检实操演示', reporter: '林晓雯', reason: '疑似违规营销', riskLevel: 'HIGH', status: 'PROCESSING', assignee: '当前管理员', assigneeAdminId: authState.session?.id ?? 'mock-admin', createdAt: '2026-08-28T03:40:00.000Z', resolution: null, targetSnapshot: '视频标题：设备点检实操演示；举报说明：疑似违规营销。', history: [{ action: '领取', operator: '当前管理员', createdAt: '2026-08-28T04:00:00.000Z' }] },
     { id: 'report-203', targetType: 'USER', targetId: '10006', targetSummary: '魏明', reporter: '陈思远', reason: '发布垃圾信息', riskLevel: 'LOW', status: 'RESOLVED', assignee: '李审核', createdAt: '2026-08-27T08:00:00.000Z', resolution: '已完成核查并记录处理结论', targetSnapshot: '用户：魏明；历史违规次数：1。', history: [{ action: '解决', operator: '李审核', createdAt: '2026-08-27T09:00:00.000Z', reason: '已完成核查并记录处理结论' }] },
     { id: 'report-204', targetType: 'COMMENT', targetId: 'comment-104', targetSummary: '请联系我获取免费资料。', reporter: '周启航', reason: '其他', riskLevel: 'LOW', status: 'REJECTED', assignee: '王审核', createdAt: '2026-08-26T05:00:00.000Z', resolution: '举报证据不足', targetSnapshot: '视频《新员工入场培训》下的评论：请联系我获取免费资料。', history: [{ action: '驳回', operator: '王审核', createdAt: '2026-08-26T06:00:00.000Z', reason: '举报证据不足' }] }
   ];
@@ -91,19 +92,19 @@ export function createMockCommentReportRepository(): CommentReportRepository {
     async claimReport(reportId) {
       const report = findReport(reportId);
       if (report.status !== 'PENDING') throw new CommentReportRepositoryError('举报已被领取或已处理', { code: 'REPORT_ALREADY_CLAIMED' });
-      return replaceReport({ ...report, status: 'PROCESSING', assignee: '当前管理员', history: [history('领取'), ...report.history] });
+      return replaceReport({ ...report, status: 'PROCESSING', assignee: '当前管理员', assigneeAdminId: authState.session?.id ?? 'mock-admin', history: [history('领取'), ...report.history] });
     },
     async resolveReport(reportId, note) {
       requireReason(note);
       const report = findReport(reportId);
-      if (report.status !== 'PROCESSING' || report.assignee !== '当前管理员') throw new CommentReportRepositoryError('仅当前处理人可以解决举报', { code: 'REPORT_NOT_CLAIMED_BY_CURRENT_OPERATOR' });
-      return replaceReport({ ...report, status: 'RESOLVED', resolution: note.trim(), history: [history('解决', note.trim()), ...report.history] });
+      if (report.status !== 'PROCESSING' || report.assigneeAdminId !== (authState.session?.id ?? 'mock-admin')) throw new CommentReportRepositoryError('仅当前处理人可以解决举报', { code: 'REPORT_NOT_CLAIMED_BY_CURRENT_OPERATOR' });
+      return replaceReport({ ...report, status: 'RESOLVED', resolution: 'RESOLVED', resolutionNote: note.trim(), history: [history('解决', note.trim()), ...report.history] });
     },
     async rejectReport(reportId, note) {
       requireReason(note);
       const report = findReport(reportId);
-      if (report.status !== 'PROCESSING' || report.assignee !== '当前管理员') throw new CommentReportRepositoryError('仅当前处理人可以驳回举报', { code: 'REPORT_NOT_CLAIMED_BY_CURRENT_OPERATOR' });
-      return replaceReport({ ...report, status: 'REJECTED', resolution: note.trim(), history: [history('驳回', note.trim()), ...report.history] });
+      if (report.status !== 'PROCESSING' || report.assigneeAdminId !== (authState.session?.id ?? 'mock-admin')) throw new CommentReportRepositoryError('仅当前处理人可以驳回举报', { code: 'REPORT_NOT_CLAIMED_BY_CURRENT_OPERATOR' });
+      return replaceReport({ ...report, status: 'REJECTED', resolution: 'REJECTED', resolutionNote: note.trim(), history: [history('驳回', note.trim()), ...report.history] });
     }
   };
 }

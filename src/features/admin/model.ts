@@ -1,6 +1,13 @@
+import type { AdminAppAccount } from '../auth/repository';
+
 export type AdminStatus = 'NORMAL' | 'DISABLED';
 
 export interface AdminRole {
+  code: string;
+  name: string;
+}
+
+export interface AdminPermission {
   code: string;
   name: string;
 }
@@ -41,10 +48,14 @@ export interface AdminRepository {
   list(query: AdminUserQuery): Promise<AdminUserPage>;
   get(adminId: string): Promise<AdminUserDetail>;
   create(input: CreateAdminInput): Promise<AdminUserDetail>;
-  updateRoles(adminId: string, roleCodes: string[]): Promise<AdminUserDetail>;
   resetPassword(adminId: string, newPassword: string): Promise<void>;
   updateStatus(adminId: string, status: AdminStatus): Promise<AdminUserDetail>;
   listRoles(): Promise<AdminRole[]>;
+  listPermissions(): Promise<AdminPermission[]>;
+  getPermissions(adminId: string): Promise<string[]>;
+  updatePermissions(adminId: string, permissionCodes: string[]): Promise<string[]>;
+  getAppAccount(adminId: string): Promise<AdminAppAccount>;
+  bindAppAccount(adminId: string, phone: string, password: string): Promise<AdminAppAccount>;
 }
 
 export const adminStatusLabel: Record<AdminStatus, string> = {

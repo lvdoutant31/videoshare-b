@@ -5,8 +5,11 @@ import { ElMessage } from 'element-plus';
 import { authState, createAdminAuthRepository } from '../features/auth/repository';
 
 const router = useRouter();
-const authRepository = createAdminAuthRepository(import.meta.env.VITE_API_BASE_URL ?? '/videoshare');
-
+const authRepository = createAdminAuthRepository(
+  import.meta.env.VITE_API_BASE_URL ?? '/videoshare',
+  globalThis.fetch.bind(globalThis),
+  import.meta.env.VITE_API_ENCRYPTION_ENABLED !== 'false',
+);
 defineProps<{ updatedAt?: string; pageTitle?: string; pageSubtitle?: string }>();
 
 async function logout() {
@@ -70,5 +73,6 @@ p { margin: 3px 0 0; color: var(--yl-text-muted); font-size: 11px; }
 .operator-copy { display:grid; gap:2px; }
 .operator-copy b { color:var(--yl-text); font-size:12px; font-weight:650; }
 .operator-copy small { color:var(--yl-text-muted); font-size:9px; }
+.binding-note { margin-top: 0; line-height: 1.6; }
 @media (max-width: 1280px) { .operator-copy { display:none; } }
 </style>

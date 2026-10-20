@@ -53,11 +53,14 @@ export interface ContentReport {
   targetSummary: string;
   reporter: string;
   reason: string;
+  description?: string | null;
   riskLevel: ModerationRiskLevel;
   status: ReportStatus;
   assignee: string | null;
+  assigneeAdminId?: string | null;
   createdAt: string;
   resolution: string | null;
+  resolutionNote?: string | null;
 }
 
 export interface ContentReportDetail extends ContentReport {

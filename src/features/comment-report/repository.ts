@@ -55,7 +55,7 @@ function normalizeIds<T>(value: T): T {
   if (!value || typeof value !== 'object') return value;
   if (Array.isArray(value)) return value.map(normalizeIds) as T;
   const result = { ...(value as Record<string, unknown>) };
-  for (const key of ['id', 'videoId', 'userId', 'targetId', 'parentCommentId']) {
+  for (const key of ['id', 'videoId', 'userId', 'targetId', 'parentCommentId', 'assigneeAdminId', 'reporterId']) {
     if (result[key] !== undefined && result[key] !== null) result[key] = String(result[key]);
   }
   for (const [key, item] of Object.entries(result)) result[key] = normalizeIds(item);
@@ -68,6 +68,10 @@ function normalizeCommentDetail(detail: ManagedCommentDetail): ManagedCommentDet
     replies: Array.isArray(detail.replies) ? detail.replies : [],
     history: Array.isArray(detail.history) ? detail.history : []
   };
+}
+
+function normalizeReportDetail(detail: ContentReportDetail): ContentReportDetail {
+  return { ...detail, history: Array.isArray(detail.history) ? detail.history : [] };
 }
 
 export function createHttpCommentReportRepository(baseUrl = '', fetcher: Fetcher = globalThis.fetch.bind(globalThis)): CommentReportRepository {
@@ -106,20 +110,20 @@ export function createHttpCommentReportRepository(baseUrl = '', fetcher: Fetcher
       await requestData<null>(fetcher, `${commentsRoot}/batch`, json('POST', { ids: commentIds.map((value) => String(value)), status, reason }));
     },
     listReports(query: ReportQuery) {
-      const params = pageParams(query.page, query.pageSize, { status: query.status });
+      const params = pageParams(query.page, query.pageSize, { status: query.status, targetType: query.targetType, riskLevel: query.riskLevel });
       return requestData<PageResult<ContentReport>>(fetcher, `${reportsRoot}?${params}`);
     },
     getReport(reportId) {
-      return requestData<ContentReportDetail>(fetcher, `${reportsRoot}/${id(reportId)}`);
+      return requestData<ContentReportDetail>(fetcher, `${reportsRoot}/${id(reportId)}`).then(normalizeReportDetail);
     },
     claimReport(reportId) {
-      return requestData<ContentReportDetail>(fetcher, `${reportsRoot}/${id(reportId)}/claim`, json('POST'));
+      return requestData<ContentReportDetail>(fetcher, `${reportsRoot}/${id(reportId)}/claim`, json('POST')).then(normalizeReportDetail);
     },
     resolveReport(reportId, note) {
-      return requestData<ContentReportDetail>(fetcher, `${reportsRoot}/${id(reportId)}/resolve`, json('POST', { note }));
+      return requestData<ContentReportDetail>(fetcher, `${reportsRoot}/${id(reportId)}/resolve`, json('POST', { resolution: 'RESOLVED', note })).then(normalizeReportDetail);
     },
     rejectReport(reportId, note) {
-      return requestData<ContentReportDetail>(fetcher, `${reportsRoot}/${id(reportId)}/reject`, json('POST', { note }));
+      return requestData<ContentReportDetail>(fetcher, `${reportsRoot}/${id(reportId)}/reject`, json('POST', { note })).then(normalizeReportDetail);
     }
   };
 }

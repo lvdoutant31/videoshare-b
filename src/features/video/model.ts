@@ -10,8 +10,9 @@ export interface Video {
   categoryIds?: string[];
   tagIds?: string[];
   status: VideoStatus;
-  visibility: 'PUBLIC' | 'INTERNAL';
+  visibility: 'PUBLIC' | 'PRIVATE';
   durationSeconds: number;
+  watchTimeMs: number;
   playCount: number;
   interactionCount: number;
   createdAt: string;
@@ -19,6 +20,7 @@ export interface Video {
   publishedAt: string | null;
   description: string;
   previewUrl: string | null;
+  videoUrl?: string | null;
   transcodeError?: string;
   offShelfReason?: string;
   isSimulated?: boolean;
@@ -41,7 +43,7 @@ export interface VideoQuery {
 }
 export interface VideoPage { items: Video[]; page: number; pageSize: number; total: number; }
 export interface VideoUpdate { title: string; description: string; categoryIds: string[]; tagIds: string[]; visibility: Video['visibility']; file?: File; }
-export interface VideoCreate { authorId?: string; originalMediaId: string; coverMediaId?: string; title: string; description?: string; sourceNote?: string; categoryIds?: string[]; tagIds?: string[]; visibility?: Video['visibility']; }
+export interface VideoCreate { authorId?: string; originalMediaId?: string | null; coverMediaId?: string; title: string; description?: string; sourceNote?: string; categoryIds?: string[]; tagIds?: string[]; visibility?: Video['visibility']; }
 export interface AuthorOption {
   id: string;
   nickname: string;
@@ -54,7 +56,7 @@ export interface VideoUploadInput {
   description: string;
   categoryIds: string[];
   tagIds: string[];
-  file: File;
+  file?: File;
 }
 
 export interface BatchResult { succeededIds: string[]; failed: Array<{ id: string; message: string }>; }

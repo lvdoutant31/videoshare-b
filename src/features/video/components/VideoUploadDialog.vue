@@ -6,6 +6,9 @@ import { reactive, ref, shallowRef, watch } from 'vue';
 import { authState } from '../../auth/repository';
 import type { VideoRepository } from '../repository';
 import type { TaxonomyRepository } from '../../taxonomy/model';
+import { cleanRichText, hasRichText } from '../richText';
+import RichTextEditor from '../../../components/RichTextEditor.vue';
+import { uploadContentImage } from '../images';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -21,6 +24,7 @@ const emit = defineEmits<{
 const MAX_FILE_SIZE = 500 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = new Set(['mp4', 'webm', 'mov']);
 const ALLOWED_CONTENT_TYPES = new Set(['video/mp4', 'video/webm', 'video/quicktime']);
+const contentType = ref<'video' | 'article' | null>(null);
 
 const form = reactive({
   title: '',
@@ -37,6 +41,7 @@ const loadingOptions = ref(false);
 const optionsLoaded = ref(false);
 const optionsError = ref('');
 const submitting = ref(false);
+const uploadingImages = ref(false);
 const uploadRef = ref<InstanceType<typeof import('element-plus')['ElUpload']>>();
 
 const fieldErrors = reactive({
@@ -68,7 +73,10 @@ async function loadOptions(force = false) {
 }
 
 watch(() => props.modelValue, (open) => {
-  if (open) void loadOptions();
+  if (open) {
+    void loadOptions();
+
+  }
 }, { immediate: true });
 
 function extractCover(file: File): Promise<string | null> {
@@ -133,6 +141,16 @@ async function handleFileChange(uploadFile: UploadFile, uploadFiles: UploadFiles
   }
 }
 
+function chooseContentType(type: 'video' | 'article') {
+  contentType.value = type;
+  if (type === 'article') {
+    selectedFile.value = null;
+    fileList.value = [];
+    coverUrl.value = null;
+    uploadRef.value?.clearFiles();
+  }
+}
+
 const handleExceed: UploadProps['onExceed'] = (files) => {
   uploadRef.value?.clearFiles();
   const file = files[0];
@@ -164,26 +182,29 @@ watch(() => form.tagIds.length, () => { fieldErrors.tagIds = ''; });
 
 function validateForm() {
   clearFieldErrors();
+  if (!contentType.value) fieldErrors.description = '请选择发布类型';
   const title = form.title.trim();
   if (!title) fieldErrors.title = '请输入视频标题';
   else if (title.length > 120) fieldErrors.title = '视频标题不能超过 120 个字符';
-  if (form.description.length > 2000) fieldErrors.description = '视频简介不能超过 2000 个字符';
+  const description = cleanRichText(form.description);
+  if (description.length > 100000) fieldErrors.description = '正文不能超过 100000 个字符';
   if (form.categoryIds.length < 1 || form.categoryIds.length > 3) fieldErrors.categoryIds = '请选择 1–3 个分类';
   if (form.tagIds.length > 10) fieldErrors.tagIds = '标签不能超过 10 个';
-  if (!selectedFile.value) {
-    fieldErrors.file = '请选择视频文件';
-  } else if (selectedFile.value.size > MAX_FILE_SIZE) {
+  if (selectedFile.value && selectedFile.value.size > MAX_FILE_SIZE) {
     fieldErrors.file = '视频文件不能超过 500 MB';
-  } else {
+  } else if (selectedFile.value) {
     const extension = selectedFile.value.name.split('.').pop()?.toLowerCase() ?? '';
     if (!ALLOWED_EXTENSIONS.has(extension) || !ALLOWED_CONTENT_TYPES.has(selectedFile.value.type)) {
       fieldErrors.file = '仅支持 MP4、WebM 或 MOV 视频文件';
     }
   }
+  if (contentType.value === 'video' && !selectedFile.value) fieldErrors.file = '请添加视频文件';
+  if (contentType.value === 'article' && !hasRichText(description)) fieldErrors.description = '请填写图文正文';
   return Object.values(fieldErrors).every((message) => !message);
 }
 
 function resetForm() {
+  contentType.value = null;
   form.title = '';
   form.description = '';
   form.categoryIds = [];
@@ -195,31 +216,32 @@ function resetForm() {
 }
 
 function cancel() {
-  if (submitting.value) return;
+  if (submitting.value || uploadingImages.value) return;
   resetForm();
   emit('update:modelValue', false);
 }
 
 function beforeClose(done: () => void) {
-  if (submitting.value) return;
+  if (submitting.value || uploadingImages.value) return;
   resetForm();
   emit('update:modelValue', false);
   done();
 }
 
 async function submit() {
+  if (submitting.value || uploadingImages.value) return;
   if (!validateForm()) return;
 
   submitting.value = true;
   try {
     await props.repository.uploadDraft({
       title: form.title.trim(),
-      description: form.description.trim(),
+      description: cleanRichText(form.description).trim(),
       categoryIds: [...form.categoryIds],
       tagIds: [...form.tagIds],
-      file: selectedFile.value as File
+      file: contentType.value === 'video' ? selectedFile.value ?? undefined : undefined
     });
-    ElMessage.success('视频上传成功');
+    ElMessage.success('内容创建成功');
     emit('uploaded');
     resetForm();
     emit('update:modelValue', false);
@@ -236,10 +258,10 @@ defineExpose({ form, fieldErrors, handleFileChange, submit });
 <template>
   <el-dialog
     :model-value="modelValue"
-    title="新增视频"
+    title="新增内容"
     width="640px"
     :close-on-click-modal="false"
-    :close-on-press-escape="!submitting"
+    :close-on-press-escape="!submitting && !uploadingImages"
     :before-close="beforeClose"
   >
     <el-alert
@@ -256,23 +278,26 @@ defineExpose({ form, fieldErrors, handleFileChange, submit });
     </el-alert>
 
     <el-form label-position="top" :model="form" v-loading="loadingOptions">
+      <div v-if="!contentType" class="content-type-picker" role="group" aria-label="选择内容类型">
+        <button type="button" class="content-type-card" @click="chooseContentType('video')">
+          <strong>发布视频</strong><span>上传视频，可添加富文本正文</span>
+        </button>
+        <button type="button" class="content-type-card" @click="chooseContentType('article')">
+          <strong>发布图文</strong><span>编辑图文或纯文字，首图作为封面</span>
+        </button>
+      </div>
+      <template v-else>
+        <div class="selected-type"><span>正在发布{{ contentType === 'video' ? '视频' : '图文' }}</span><el-button link type="primary" @click="contentType = null">更换类型</el-button></div>
       <el-form-item label="作者">
         <el-input :model-value="authState.session?.username ?? '当前登录用户'" readonly />
       </el-form-item>
 
       <el-form-item label="标题" required :error="fieldErrors.title">
-        <el-input v-model="form.title" maxlength="120" show-word-limit placeholder="请输入视频标题" />
+        <el-input v-model="form.title" maxlength="120" show-word-limit placeholder="请输入标题" />
       </el-form-item>
 
-      <el-form-item label="简介" :error="fieldErrors.description">
-        <el-input
-          v-model="form.description"
-          type="textarea"
-          :rows="4"
-          maxlength="2000"
-          show-word-limit
-          placeholder="请输入视频简介"
-        />
+      <el-form-item :label="contentType === 'video' ? '正文（选填）' : '图文正文'" :error="fieldErrors.description">
+        <RichTextEditor v-model="form.description" :upload-image="uploadContentImage" :disabled="submitting" @busy="uploadingImages = $event" @error="ElMessage.error($event)" />
       </el-form-item>
 
       <div class="selector-grid">
@@ -303,7 +328,7 @@ defineExpose({ form, fieldErrors, handleFileChange, submit });
         </el-form-item>
       </div>
 
-      <el-form-item label="视频文件" required :error="fieldErrors.file">
+      <el-form-item v-if="contentType === 'video'" label="视频文件" :error="fieldErrors.file">
         <el-upload
           ref="uploadRef"
           drag
@@ -321,7 +346,7 @@ defineExpose({ form, fieldErrors, handleFileChange, submit });
           <el-icon class="upload-icon"><UploadFilled /></el-icon>
           <div>拖拽视频到此处，或<em>点击选择</em></div>
           <template #tip>
-            <span class="upload-tip">支持 MP4、WebM、MOV，文件不超过 500 MB，只能上传一个视频</span>
+            <span class="upload-tip">请上传 MP4、WebM 或 MOV 视频，文件不超过 500 MB；正文可选</span>
           </template>
         </el-upload>
         <div v-if="coverUrl" class="cover-preview">
@@ -329,17 +354,18 @@ defineExpose({ form, fieldErrors, handleFileChange, submit });
           <span>视频封面预览</span>
         </div>
       </el-form-item>
+      </template>
     </el-form>
 
     <template #footer>
-      <el-button :disabled="submitting" @click="cancel">取消</el-button>
+      <el-button :disabled="submitting || uploadingImages" @click="cancel">取消</el-button>
       <el-button
         type="primary"
         data-testid="upload-submit"
         :loading="submitting"
-        :disabled="loadingOptions || !!optionsError"
+        :disabled="!contentType || loadingOptions || !!optionsError || uploadingImages"
         @click="submit"
-      >上传视频</el-button>
+      >创建内容</el-button>
     </template>
   </el-dialog>
 </template>
@@ -354,4 +380,10 @@ defineExpose({ form, fieldErrors, handleFileChange, submit });
 .cover-preview { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 12px; padding: 10px; background: var(--yl-surface, #f7f8fa); border: 1px solid var(--yl-border, #e4e7ed); border-radius: 8px; }
 .cover-preview img { max-width: 280px; max-height: 158px; border-radius: 4px; object-fit: contain; }
 .cover-preview span { color: var(--yl-text-muted); font-size: 11px; }
+.content-type-picker { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:12px 0 20px; }
+.content-type-card { display:grid; gap:8px; min-height:100px; padding:18px; text-align:left; border:1px solid var(--yl-border); border-radius:10px; background:var(--yl-surface); cursor:pointer; }
+.content-type-card:hover { border-color:var(--yl-indigo); background:#f5f6ff; }
+.content-type-card strong { color:var(--yl-text); font-size:15px; }
+.content-type-card span,.selected-type { color:var(--yl-text-muted); font-size:12px; }
+.selected-type { display:flex; align-items:center; justify-content:space-between; margin:4px 0 14px; }
 </style>

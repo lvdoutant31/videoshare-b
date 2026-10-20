@@ -6,11 +6,15 @@ import {
   Document,
   Setting,
   User,
+  DocumentCopy,
+  Warning,
   VideoCamera
 } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import type { Component } from 'vue';
+import { computed } from 'vue';
 import { useRoute } from 'vue-router';
+import { hasPermission } from '../features/auth/permissions';
 
 defineProps<{ collapsed: boolean }>();
 
@@ -22,20 +26,26 @@ interface NavigationItem {
   icon: Component;
   to?: string;
   activePaths?: string[];
+  permission?: string;
+  anyPermissions?: string[];
 }
 
 const navigation: NavigationItem[] = [
-  { label: '工作台', icon: DataBoard, to: '/dashboard' },
-  { label: '视频管理', icon: VideoCamera, to: '/videos' },
-  { label: 'OSS上传测试', icon: Setting, to: '/oss-upload-test' },
-  { label: '审核管理', icon: Checked, to: '/reviews' },
-  { label: '用户管理', icon: User, to: '/users' },
-  { label: '管理员管理', icon: User, to: '/admins' },
-  { label: '评论与举报', icon: ChatDotRound, to: '/comments', activePaths: ['/comments', '/reports'] },
-  { label: '分类管理', icon: Setting, to: '/system/categories' },
-  { label: '标签管理', icon: Setting, to: '/system/tags' },
-  { label: '操作日志', icon: Document, to: '/system/operation-logs' }
+  { label: '工作台', icon: DataBoard, to: '/dashboard', permission: 'dashboard:view' },
+  { label: '内容管理', icon: VideoCamera, to: '/videos', permission: 'video:view' },
+  { label: '审核管理', icon: Checked, to: '/reviews', permission: 'review:view' },
+  { label: '用户管理', icon: User, to: '/users', permission: 'user:view' },
+  { label: '管理员管理', icon: User, to: '/admins', permission: 'admin:view' },
+  { label: '评论管理', icon: ChatDotRound, to: '/comments', permission: 'comment:view' },
+  { label: '举报管理', icon: Warning, to: '/reports', permission: 'report:view' },
+  { label: '分类管理', icon: Setting, to: '/system/categories', permission: 'category:view' },
+  { label: '标签管理', icon: Setting, to: '/system/tags', permission: 'tag:view' },
+  { label: '操作日志', icon: Document, to: '/system/operation-logs', permission: 'operation-log:view' },
+  { label: '运行日志', icon: DocumentCopy, to: '/system/runtime-logs', permission: 'runtime-log:view' }
 ];
+const visibleNavigation = computed(() => navigation.filter(item =>
+  item.anyPermissions?.some(hasPermission) ?? hasPermission(item.permission)
+));
 
 function showComingSoon(label: string) {
   ElMessage.info(`${label}即将开放`);
@@ -44,13 +54,13 @@ function showComingSoon(label: string) {
 
 <template>
   <aside class="admin-sidebar" :aria-label="collapsed ? '主导航（已折叠）' : '主导航'">
-    <div class="brand" aria-label="映流运营后台">
+    <div class="brand" aria-label="videoshare 运营后台">
       <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
-      <span v-show="!collapsed" class="brand-name">映流</span>
+      <span v-show="!collapsed" class="brand-name">videoshare</span>
     </div>
 
     <nav class="sidebar-nav">
-      <template v-for="item in navigation" :key="item.label">
+      <template v-for="item in visibleNavigation" :key="item.label">
         <RouterLink
           v-if="item.to"
           :to="item.to"

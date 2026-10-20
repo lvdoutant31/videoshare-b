@@ -80,6 +80,7 @@ function fakeTaxonomyRepository(overrides: Partial<TaxonomyRepository> = {}): Ta
 }
 
 type DialogVm = {
+  contentType: 'video' | 'article' | null;
   form: {
     title: string;
     description: string;
@@ -106,6 +107,7 @@ function validFile() {
 }
 
 function fillValidForm(vm: DialogVm) {
+  vm.contentType = 'video';
   Object.assign(vm.form, {
     title: ' 安全培训 ',
     description: ' 简介 ',
@@ -116,6 +118,42 @@ function fillValidForm(vm: DialogVm) {
 }
 
 describe('VideoUploadDialog', () => {
+  it('starts with an explicit content type choice', async () => {
+    const repository = fakeVideoRepository();
+    const wrapper = mountDialog(repository);
+    await flushPromises();
+    expect(wrapper.findAll('.content-type-card')).toHaveLength(2);
+    expect(wrapper.findAll('[data-testid="field-error"]')).toHaveLength(0);
+    expect(repository.uploadDraft).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+  it.each(['<p>纯文字正文</p>', '<p><img src="/media/images/a.png"></p>'])('allows non-video content: %s', async (description) => {
+    const repository = fakeVideoRepository();
+    const wrapper = mountDialog(repository);
+    await flushPromises();
+    const vm = wrapper.vm as unknown as DialogVm;
+    await wrapper.findAll('.content-type-card')[1].trigger('click');
+    Object.assign(vm.form, { title: '非视频内容', description, categoryIds: ['10'], tagIds: [] });
+    await flushPromises();
+    await vm.submit();
+    expect(repository.uploadDraft).toHaveBeenCalledWith(expect.objectContaining({ file: undefined }));
+    const saved = vi.mocked(repository.uploadDraft).mock.calls[0][0].description;
+    expect(saved).toContain(description.includes('<img') ? '/media/images/a.png' : '纯文字正文');
+  });
+
+  it('rejects empty paragraphs without a video', async () => {
+    const repository = fakeVideoRepository();
+    const wrapper = mountDialog(repository);
+    await flushPromises();
+    const vm = wrapper.vm as unknown as DialogVm;
+    await wrapper.findAll('.content-type-card')[1].trigger('click');
+    Object.assign(vm.form, { title: '空正文', description: '<p><br>&nbsp;</p>', categoryIds: ['10'], tagIds: [] });
+    await flushPromises();
+    await vm.submit();
+    expect(repository.uploadDraft).not.toHaveBeenCalled();
+    expect(vm.fieldErrors.description).toBe('请填写图文正文');
+  });
+
   it('loads taxonomy options without offering an author selection', async () => {
     const repository = fakeVideoRepository();
     const taxonomyRepo = fakeTaxonomyRepository();
@@ -193,13 +231,14 @@ describe('VideoUploadDialog', () => {
     const repository = fakeVideoRepository();
     const wrapper = mountDialog(repository);
     await flushPromises();
+    await wrapper.findAll('.content-type-card')[1].trigger('click');
 
     await (wrapper.vm as unknown as DialogVm).submit();
 
     expect(wrapper.findAll('[data-testid="field-error"]').map((item) => item.text())).toEqual([
       '请输入视频标题',
+      '请填写图文正文',
       '请选择 1–3 个分类',
-      '请选择视频文件'
     ]);
   });
 

@@ -35,6 +35,13 @@ async function requestRepository<T>(fetcher: typeof fetch, url: string, init?: R
   return body.data;
 }
 
+function toBatchResult(result: { succeeded?: Array<string | number>; failures?: Array<{ id: string | number; code?: string; message: string }> }): BatchResult {
+  return {
+    succeededIds: (result.succeeded ?? []).map(String),
+    failed: (result.failures ?? []).map((item) => ({ id: String(item.id), message: item.message }))
+  };
+}
+
 function toVideo(video: ApiDetail): Video {
   const categories = video.categories ?? [];
   const tags = video.tags ?? [];
@@ -45,7 +52,10 @@ function toVideo(video: ApiDetail): Video {
   else if (video.auditStatus === 'REJECTED') status = 'REJECTED';
   else if (video.auditStatus === 'REVISION_REQUIRED') status = 'REVISION_REQUIRED';
   else if (video.auditStatus === 'APPROVED') status = 'APPROVED';
-  return { id: String(video.id), title: video.title ?? '', author: video.authorNickname ?? String(video.authorId ?? ''), category: categories[0]?.name ?? '', categoryIds: categories.map((item) => String(item.id)), tagIds: tags.flatMap((tag) => typeof tag === 'string' ? [] : [String(tag.id)]), tags: Array.isArray(tags) ? tags.map((tag) => typeof tag === 'string' ? tag : (tag as { name: string }).name) : [], status: video.status ?? status, visibility: (video.visibility as Video['visibility']) ?? 'PUBLIC', durationSeconds: video.durationSeconds ?? Math.round((video.originalMedia?.durationMs ?? 0) / 1000), playCount: video.playCount ?? 0, interactionCount: video.interactionCount ?? 0, createdAt: video.createdAt ?? '', updatedAt: video.updatedAt ?? '', publishedAt: video.publishedAt ?? null, description: video.description ?? '', previewUrl: video.previewUrl ?? video.originalMedia?.url ?? null, authorId: video.authorId == null ? undefined : String(video.authorId), auditStatus: video.auditStatus, publishStatus: video.publishStatus };
+  const description = video.description ?? '';
+  const source = typeof DOMParser === 'undefined' ? null : new DOMParser().parseFromString(description, 'text/html').querySelector('img')?.getAttribute('src') ?? null;
+  const firstImage = source && /^(https?:\/\/|\/(?!\/))/i.test(source) ? source : null;
+  return { id: String(video.id), title: video.title ?? '', author: video.authorNickname ?? String(video.authorId ?? ''), category: categories[0]?.name ?? '', categoryIds: categories.map((item) => String(item.id)), tagIds: tags.flatMap((tag) => typeof tag === 'string' ? [] : [String(tag.id)]), tags: Array.isArray(tags) ? tags.map((tag) => typeof tag === 'string' ? tag : (tag as { name: string }).name) : [], status: video.status ?? status, visibility: (video.visibility as Video['visibility']) ?? 'PUBLIC', durationSeconds: video.durationSeconds ?? Math.round((video.originalMedia?.durationMs ?? 0) / 1000), watchTimeMs: video.watchTimeMs ?? 0, playCount: video.playCount ?? 0, interactionCount: video.interactionCount ?? 0, createdAt: video.createdAt ?? '', updatedAt: video.updatedAt ?? '', publishedAt: video.publishedAt ?? null, description, videoUrl: video.originalMedia?.url ?? null, previewUrl: video.previewUrl ?? video.originalMedia?.url ?? firstImage, authorId: video.authorId == null ? undefined : String(video.authorId), auditStatus: video.auditStatus, publishStatus: video.publishStatus };
 }
 
 export function createHttpVideoRepository(baseUrl = '', fetcher: typeof fetch = globalThis.fetch.bind(globalThis)): VideoRepository {
@@ -89,11 +99,15 @@ export function createHttpVideoRepository(baseUrl = '', fetcher: typeof fetch = 
     async offShelf(value: string, reason: string) { return toVideo(await requestRepository<ApiDetail>(fetcher, endpoint(`/${id(value)}/off-shelf`), json('POST', { reason }))); },
     async restore(value: string) { return toVideo(await requestRepository<ApiDetail>(fetcher, endpoint(`/${id(value)}/restore`), json('POST'))); },
     retryTranscode(value: string) { return requestRepository<null>(fetcher, endpoint(`/${id(value)}/transcodes/720P/retry`), json('POST')); },
-    batchOffShelf(ids: string[], reason: string) { return requestRepository<BatchResult>(fetcher, endpoint('/batch/off-shelf'), json('POST', { videoIds: ids, reason })); },
-    batchRestore(ids: string[]) { return requestRepository<BatchResult>(fetcher, endpoint('/batch/restore'), json('POST', { videoIds: ids })); },
-    batchDelete(ids: string[], reason: string) { return requestRepository<BatchResult>(fetcher, endpoint('/batch/delete'), json('POST', { videoIds: ids, reason })); },
+    async batchOffShelf(ids: string[], reason: string) { return toBatchResult(await requestRepository<{ succeeded: Array<string | number>; failures: Array<{ id: string | number; message: string }> }>(fetcher, endpoint('/batch/off-shelf'), json('POST', { videoIds: ids, reason }))); },
+    async batchRestore(ids: string[]) { return toBatchResult(await requestRepository<{ succeeded: Array<string | number>; failures: Array<{ id: string | number; message: string }> }>(fetcher, endpoint('/batch/restore'), json('POST', { videoIds: ids }))); },
+    async batchDelete(ids: string[], reason: string) { return toBatchResult(await requestRepository<{ succeeded: Array<string | number>; failures: Array<{ id: string | number; message: string }> }>(fetcher, endpoint('/batch/delete'), json('POST', { videoIds: ids, reason }))); },
     async listAuthors() { const page = await requestRepository<{ items: AuthorOption[] }>(fetcher, `${baseUrl}/api/v1/admin/users?page=1&pageSize=100&status=NORMAL`); return page.items; },
     uploadDraft(input: ModelVideoUploadInput) {
+      if (!input.file) return requestRepository<unknown>(fetcher, endpoint(), json('POST', {
+        authorId: input.authorId, originalMediaId: null, title: input.title,
+        description: input.description, categoryIds: input.categoryIds, tagIds: input.tagIds, visibility: 'PUBLIC'
+      }));
       const body = new FormData();
       body.append('title', input.title); body.append('description', input.description);
       input.categoryIds.forEach((value) => body.append('categoryIds', value)); input.tagIds.forEach((value) => body.append('tagIds', value));

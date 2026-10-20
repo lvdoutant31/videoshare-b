@@ -51,6 +51,20 @@ describe('video edit contract', () => {
     expect(request.method).toBe('POST');
     expect(JSON.parse(request.body)).toEqual({ videoIds: [detail.id, '2096791884193673218'], reason: '违规批量清理' });
   });
+  it('submits an off-shelf video for review instead of publishing it', async () => {
+    const fetcher = vi.fn().mockResolvedValue(reply());
+    await createHttpVideoRepository('', fetcher).restore(detail.id);
+    const [url, request] = fetcher.mock.calls[0];
+    expect(url).toBe('/api/v1/admin/videos/' + detail.id + '/restore');
+    expect(request.method).toBe('POST');
+  });
+  it('maps backend batch restore results to the UI contract', async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ code: 'OK', data: { succeeded: [detail.id], failures: [] } }), {
+      status: 200, headers: { 'Content-Type': 'application/json' }
+    }));
+    const result = await createHttpVideoRepository('', fetcher).batchRestore([detail.id]);
+    expect(result).toEqual({ succeededIds: [detail.id], failed: [] });
+  });
   it('replaces the existing video in one multipart PATCH to /file without creating a draft', async () => {
     const fetcher = vi.fn().mockResolvedValue(reply());
     const file = new File(['new-video'], 'replacement.mp4', { type: 'video/mp4' });

@@ -10,11 +10,17 @@ import { reviewRepositoryKey, createHttpReviewRepository } from './features/revi
 import { userRepositoryKey, createHttpUserRepository } from './features/user/repository';
 import { adminRepositoryKey, createHttpAdminRepository } from './features/admin/repository';
 import { commentReportRepositoryKey, createHttpCommentReportRepository } from './features/comment-report/repository';
-import { authState, createAdminAuthRepository } from './features/auth/repository';
+import { adminAuthRepositoryKey, authState, createAdminAuthRepository } from './features/auth/repository';
 import { createAuthenticatedFetch, isSessionInvalid, sanitizeRedirect, setUnauthorizedHandler } from './features/auth/http';
+import { createEncryptedFetch } from './api/crypto';
 import './styles/index.css';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/videoshare';
+const apiEncryptionEnabled = import.meta.env.VITE_API_ENCRYPTION_ENABLED !== 'false';
+const apiFetcher = globalThis.fetch.bind(globalThis);
+const secureApiFetcher = apiEncryptionEnabled
+  ? createEncryptedFetch(apiBaseUrl, apiFetcher)
+  : apiFetcher;
 const SESSION_POLL_INTERVAL_MS = 5 * 60 * 1000;
 const AUTH_CHANNEL_NAME = 'yingliu-admin-auth';
 
@@ -43,8 +49,8 @@ function handleSessionInvalid() {
 
 setUnauthorizedHandler(handleSessionInvalid);
 
-// 所有业务 repository 共用同一包装：凭证与会话失效处理在此收口。
-const authenticatedFetch = createAuthenticatedFetch();
+// 所有业务 repository 共用同一包装：接口加密（启用时）、凭证与会话失效处理在此收口。
+const authenticatedFetch = createAuthenticatedFetch(secureApiFetcher);
 const dashboardRepository = createHttpDashboardRepository(apiBaseUrl, authenticatedFetch);
 const taxonomyRepository = createHttpTaxonomyRepository(apiBaseUrl, authenticatedFetch);
 const videoRepository = createHttpVideoRepository(apiBaseUrl, authenticatedFetch);
@@ -52,8 +58,8 @@ const reviewRepository = createHttpReviewRepository(apiBaseUrl, authenticatedFet
 const userRepository = createHttpUserRepository(apiBaseUrl, authenticatedFetch);
 const adminRepository = createHttpAdminRepository(apiBaseUrl, authenticatedFetch);
 const commentReportRepository = createHttpCommentReportRepository(apiBaseUrl, authenticatedFetch);
-// 登录与会话探测使用原始 fetch：它们自身就是会话状态的来源，不应再触发跳转。
-const authRepository = createAdminAuthRepository(apiBaseUrl);
+// 登录与会话探测使用同一 API 传输配置，但不挂全局 401 跳转：它们自身就是会话状态的来源。
+const authRepository = createAdminAuthRepository(apiBaseUrl, apiFetcher, apiEncryptionEnabled);
 
 async function bootstrapAuth() {
   try {
@@ -108,6 +114,7 @@ bootstrapAuth().finally(() => {
     .provide(userRepositoryKey, userRepository)
     .provide(adminRepositoryKey, adminRepository)
     .provide(commentReportRepositoryKey, commentReportRepository)
+    .provide(adminAuthRepositoryKey, authRepository)
     .mount('#app');
   startSessionWatchdog();
   startCrossTabSync();

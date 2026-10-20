@@ -6,7 +6,7 @@ export interface ReviewQuery { page: number; pageSize: number; keyword?: string;
 export interface ReviewFinding { level: ReviewRiskLevel; source: string; description: string; score: number; }
 export interface ReviewHistory { action: 'SUBMITTED' | 'CLAIMED' | 'APPROVED' | 'REJECTED' | 'REVISION_REQUIRED'; operator: string; createdAt: string; reason?: string; }
 export interface ReviewTask {
-  id: string; videoId: string; title: string; author: string; category: string; tags: string[]; description: string; durationSeconds: number; submittedAt: string; status: ReviewTaskStatus; riskLevel: ReviewRiskLevel; findings: ReviewFinding[]; claimedBy: string | null; claimToken: string | null; version: number; history: ReviewHistory[];
+  id: string; videoId: string; title: string; author: string; category: string; tags: string[]; description: string; durationSeconds: number; videoUrl: string | null; submittedAt: string; status: ReviewTaskStatus; riskLevel: ReviewRiskLevel; findings: ReviewFinding[]; claimedBy: string | null; claimToken: string | null; version: number; history: ReviewHistory[];
 }
 export interface ReviewPage { items: ReviewTask[]; page: number; pageSize: number; total: number; }
 export interface ReviewDecisionInput { decision: ReviewDecision; reason?: string; currentVersion: number; }

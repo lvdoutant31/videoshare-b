@@ -8,7 +8,9 @@ const statuses: Record<VideoStatus, { label: string; type: 'success' | 'warning'
   pendingReview: { label: '待审核', type: 'warning' },
   transcoding: { label: '转码中', type: 'info' },
   transcodeFailed: { label: '转码失败', type: 'danger' },
-  offShelf: { label: '已下架', type: 'info' }
+  offShelf: { label: '已下架', type: 'info' },
+  rejected: { label: '已驳回', type: 'danger' },
+  draft: { label: '草稿', type: 'info' }
 };
 
 function formatNumber(value: number | null) { return value === null ? '--' : new Intl.NumberFormat('zh-CN').format(value); }
@@ -24,8 +26,9 @@ function formatDate(value: string | null) {
       <el-table-column prop="title" label="视频标题" min-width="220"><template #default="{ row }: { row: RecentVideo }"><div class="video-title">{{ row.title }}</div><small>ID {{ row.id }}</small></template></el-table-column>
       <el-table-column prop="author" label="发布者" min-width="140" />
       <el-table-column label="状态" width="100"><template #default="{ row }: { row: RecentVideo }"><el-tag :type="statuses[row.status].type" size="small" effect="plain">{{ statuses[row.status].label }}</el-tag></template></el-table-column>
-      <el-table-column label="播放量" width="110" align="right"><template #default="{ row }: { row: RecentVideo }">{{ formatNumber(row.playCount) }}</template></el-table-column>
-      <el-table-column label="发布时间" width="145"><template #default="{ row }: { row: RecentVideo }">{{ formatDate(row.publishedAt) }}</template></el-table-column>
+      <el-table-column label="有效播放" width="110" align="right"><template #default="{ row }: { row: RecentVideo }">{{ formatNumber(row.playCount) }}</template></el-table-column>
+      <el-table-column label="互动量" width="100" align="right"><template #default="{ row }: { row: RecentVideo }">{{ formatNumber(row.interactionCount) }}</template></el-table-column>
+      <el-table-column label="最近更新" width="145"><template #default="{ row }: { row: RecentVideo }">{{ formatDate(row.updatedAt ?? row.publishedAt) }}</template></el-table-column>
     </el-table>
   </section>
 </template>

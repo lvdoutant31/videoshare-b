@@ -15,19 +15,27 @@ export const router = createRouter({
     { path: '/login', name: 'login', component: () => import('./views/AdminLoginView.vue'), meta: { public: true } },
     // 403 必须公开：已登录但权限不足的用户会被守卫送到这里，若它自身再要求权限就会死循环。
     { path: '/403', name: 'forbidden', component: () => import('./views/ForbiddenView.vue'), meta: { public: true } },
-    { path: '/', redirect: '/dashboard' },
+    { path: '/', redirect: () => {
+      const firstAllowed = [
+        ['dashboard:view', '/dashboard'], ['video:view', '/videos'], ['review:view', '/reviews'],
+        ['user:view', '/users'], ['admin:view', '/admins'], ['comment:view', '/comments'],
+        ['report:view', '/reports'], ['category:view', '/system/categories'], ['tag:view', '/system/tags'],
+        ['operation-log:view', '/system/operation-logs'], ['runtime-log:view', '/system/runtime-logs']
+      ].find(([permission]) => hasPermission(permission));
+      return firstAllowed?.[1] ?? '/403';
+    } },
     { path: '/dashboard', name: 'dashboard', component: () => import('./views/DashboardView.vue'), meta: { permission: 'dashboard:view' } },
     { path: '/videos', name: 'videos', component: () => import('./views/VideoManagementView.vue'), meta: { permission: 'video:view' } },
-    { path: '/oss-upload-test', name: 'oss-upload-test', component: () => import('./views/OssUploadTestView.vue'), meta: { permission: 'oss-test:upload' } },
     { path: '/reviews', name: 'reviews', component: () => import('./views/VideoReviewManagementView.vue'), meta: { permission: 'review:view' } },
     { path: '/users', name: 'users', component: () => import('./views/UserManagementView.vue'), meta: { permission: 'user:view' } },
     { path: '/admins', name: 'admins', component: () => import('./views/AdminManagementView.vue'), meta: { permission: 'admin:view' } },
     { path: '/comments', name: 'comments', component: () => import('./views/CommentReportManagementView.vue'), props: { resource: 'comments' }, meta: { permission: 'comment:view' } },
     { path: '/reports', name: 'reports', component: () => import('./views/CommentReportManagementView.vue'), props: { resource: 'reports' }, meta: { permission: 'report:view' } },
-    { path: '/system', redirect: '/system/categories' },
+    { path: '/system', redirect: () => hasPermission('category:view') ? '/system/categories' : '/system/tags' },
     { path: '/system/categories', name: 'categories', component: () => import('./views/TaxonomyManagementView.vue'), props: { resource: 'categories' }, meta: { permission: 'category:view' } },
     { path: '/system/tags', name: 'tags', component: () => import('./views/TaxonomyManagementView.vue'), props: { resource: 'tags' }, meta: { permission: 'tag:view' } },
     { path: '/system/operation-logs', name: 'operationLogs', component: () => import('./views/OperationLogView.vue'), meta: { permission: 'operation-log:view' } },
+    { path: '/system/runtime-logs', name: 'runtimeLogs', component: () => import('./views/RuntimeLogView.vue'), meta: { permission: 'runtime-log:view' } },
     { path: '/:pathMatch(.*)*', redirect: '/dashboard' }
   ]
 });

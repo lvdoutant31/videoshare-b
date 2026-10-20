@@ -19,8 +19,11 @@ interface ApiEnvelope<T> {
 interface DashboardSummaryData {
   updatedAt: string;
   metrics: DashboardMetric[];
-  recentVideos?: RecentVideo[];
+  recentVideos?: DashboardApiRecentVideo[];
 }
+
+type DashboardApiRecentVideo = Omit<RecentVideo, 'interactionCount' | 'updatedAt'> &
+  Partial<Pick<RecentVideo, 'interactionCount' | 'updatedAt'>>;
 
 interface DashboardTrendData {
   points: TrendPoint[];
@@ -81,7 +84,11 @@ export function createHttpDashboardRepository(
         trend: { range, points: trend.points },
         todos: todos.items,
         storage,
-        recentVideos: summary.recentVideos ?? []
+        recentVideos: (summary.recentVideos ?? []).map((video) => ({
+          ...video,
+          interactionCount: video.interactionCount ?? null,
+          updatedAt: video.updatedAt ?? video.publishedAt ?? null
+        }))
       };
     }
   };

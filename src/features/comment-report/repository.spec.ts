@@ -29,10 +29,10 @@ describe('comment report HTTP repository', () => {
     const repository = createHttpCommentReportRepository('', fetcher);
 
     await repository.listComments({ page: 1, pageSize: 20, keyword: '广告', status: 'HIDDEN' });
-    await repository.listReports({ page: 2, pageSize: 10, status: 'PENDING', targetType: 'COMMENT' });
+    await repository.listReports({ page: 2, pageSize: 10, status: 'PROCESSING', targetType: 'COMMENT', riskLevel: 'HIGH' });
 
     expect(fetcher.mock.calls[0][0]).toBe('/api/v1/admin/comments?page=1&pageSize=20&status=HIDDEN');
-    expect(fetcher.mock.calls[1][0]).toBe('/api/v1/admin/reports?page=2&pageSize=10&status=PENDING');
+    expect(fetcher.mock.calls[1][0]).toBe('/api/v1/admin/reports?page=2&pageSize=10&status=PROCESSING&targetType=COMMENT&riskLevel=HIGH');
   });
 
   it('defaults missing comment detail collections to empty arrays', async () => {
@@ -57,6 +57,13 @@ describe('comment report HTTP repository', () => {
       '/api/v1/admin/reports/report-1/reject'
     ]);
     expect(fetcher.mock.calls[0][1]).toMatchObject({ method: 'POST', body: JSON.stringify({ ids: ['comment-1'], status: 'HIDDEN', reason: '违规' }) });
+    expect(fetcher.mock.calls[2][1]).toMatchObject({ method: 'POST', body: JSON.stringify({ resolution: 'RESOLVED', note: '已处理' }) });
+    expect(fetcher.mock.calls[3][1]).toMatchObject({ method: 'POST', body: JSON.stringify({ note: '证据不足' }) });
+  });
+
+  it('preserves assignee IDs and handles report details without a history collection', async () => {
+    const repository = createHttpCommentReportRepository('', vi.fn().mockResolvedValue(response({ code: 'OK', data: { id: 1, assigneeAdminId: 7, targetSummary: '被举报内容' } })));
+    await expect(repository.getReport('1')).resolves.toMatchObject({ id: '1', assigneeAdminId: '7', targetSummary: '被举报内容', history: [] });
   });
 
   it('retains backend trace details and normalizes malformed responses', async () => {

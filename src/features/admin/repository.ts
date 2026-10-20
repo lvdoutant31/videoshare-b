@@ -1,4 +1,5 @@
-import type { AdminRepository, AdminRole, AdminStatus, AdminUserDetail, AdminUserPage, AdminUserQuery, CreateAdminInput } from './model';
+import type { AdminPermission, AdminRepository, AdminRole, AdminStatus, AdminUserDetail, AdminUserPage, AdminUserQuery, CreateAdminInput } from './model';
+import type { AdminAppAccount } from '../auth/repository';
 
 interface ApiEnvelope<T> { code: string; message?: string; data: T; traceId?: string; }
 type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
@@ -50,12 +51,16 @@ function params(query: AdminUserQuery) {
 export function createHttpAdminRepository(baseUrl = '', fetcher: Fetcher = globalThis.fetch.bind(globalThis)): AdminRepository {
   const root = `${baseUrl}/api/v1/admin/admins`;
   const path = (id: string, suffix = '') => `${root}/${encodeURIComponent(id)}${suffix}`;
-  const json = (method: 'POST' | 'PATCH', body: unknown): RequestInit => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const json = (method: 'POST' | 'PUT' | 'PATCH', body: unknown): RequestInit => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   return {
     list: (query) => requestData<AdminUserPage>(fetcher, `${root}?${params(query)}`),
     get: (id) => requestData<AdminUserDetail>(fetcher, path(id)),
     create: (input: CreateAdminInput) => requestData<AdminUserDetail>(fetcher, root, json('POST', input)),
-    updateRoles: (id, roleCodes) => requestData<AdminUserDetail>(fetcher, path(id, '/roles'), json('PATCH', { roleCodes })),
+    listPermissions: () => requestData<AdminPermission[]>(fetcher, `${root}/permissions`),
+    getPermissions: (id) => requestData<string[]>(fetcher, path(id, '/permissions')),
+    updatePermissions: (id, permissionCodes) => requestData<string[]>(fetcher, path(id, '/permissions'), json('PUT', { permissionCodes })),
+    getAppAccount: (id) => requestData<AdminAppAccount>(fetcher, path(id, '/app-account')),
+    bindAppAccount: (id, phone, password) => requestData<AdminAppAccount>(fetcher, path(id, '/app-account'), json('PUT', { phone, password })),
     async resetPassword(id, newPassword) { await requestData<null>(fetcher, path(id, '/password'), json('POST', { newPassword })); },
     updateStatus: (id, status: AdminStatus) => requestData<AdminUserDetail>(fetcher, path(id, '/status'), json('PATCH', { status })),
     listRoles: () => requestData<AdminRole[]>(fetcher, `${root}/roles`)

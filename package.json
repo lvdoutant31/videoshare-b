@@ -11,6 +11,13 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "2.3.2",
+    "@tiptap/extension-image": "3.31.4",
+    "@tiptap/extension-table": "3.31.4",
+    "@tiptap/extension-text-align": "3.31.4",
+    "@tiptap/extension-text-style": "3.31.4",
+    "@tiptap/pm": "3.31.4",
+    "@tiptap/starter-kit": "3.31.4",
+    "@tiptap/vue-3": "3.31.4",
     "@vitejs/plugin-vue": "latest",
     "echarts": "5.6.0",
     "element-plus": "^2.8.8",
@@ -19,7 +26,7 @@
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
-    "@vue/test-utils": "^2.4.6",
+    "@vue/test-utils": "2.4.6",
     "jsdom": "^25.0.1",
     "typescript": "~5.6.3",
     "vitest": "^3.0.0",

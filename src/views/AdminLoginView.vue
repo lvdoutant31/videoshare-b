@@ -57,7 +57,7 @@ async function submit() {
 <template>
   <main class="login-page">
     <el-card class="login-panel" shadow="never">
-      <h1>映流管理后台</h1>
+      <h1>videoshare 管理后台</h1>
       <p>使用后台账号登录后继续。</p>
       <el-alert v-if="reasonNotice" :title="reasonNotice" type="warning" :closable="false" show-icon />
       <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />

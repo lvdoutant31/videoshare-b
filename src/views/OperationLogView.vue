@@ -2,11 +2,17 @@
 import { RefreshRight } from '@element-plus/icons-vue';
 import { computed, onMounted, reactive, ref } from 'vue';
 import AdminShell from '../layouts/AdminShell.vue';
+import { createEncryptedFetch } from '../api/crypto';
+import { createAuthenticatedFetch } from '../features/auth/http';
 import { createHttpSystemRepository } from '../features/system/repository';
 import type { OperationLog, OperationLogQuery } from '../features/system/model';
 import { actionLabels, moduleLabels } from '../features/system/model';
 
-const repository = createHttpSystemRepository();
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/videoshare';
+const repository = createHttpSystemRepository(
+  apiBaseUrl,
+  createAuthenticatedFetch(createEncryptedFetch(apiBaseUrl)),
+);
 
 const logs = ref<OperationLog[]>([]);
 const total = ref(0);

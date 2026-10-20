@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import { createEncryptedFetch } from '../api/crypto';
 
 interface HealthResponse {
   code?: string;
@@ -7,7 +8,7 @@ interface HealthResponse {
 }
 
 async function getHealth(baseUrl: string, path: string) {
-  const response = await fetch(`${baseUrl}${path}`, { headers: { Accept: 'application/json' } });
+  const response = await createEncryptedFetch(baseUrl)(`${baseUrl}${path}`, { headers: { Accept: 'application/json' } });
   const body = await response.json() as HealthResponse;
   if (!response.ok || (body.code !== undefined && body.code !== 'OK')) throw new Error('Health check failed');
   return body;
@@ -29,7 +30,7 @@ async function checkHealth() {
 
 <template>
   <main class="workspace">
-    <h1>映流运营后台</h1>
+    <h1>videoshare 运营后台</h1>
     <p>后台工程基线</p>
     <button type="button" @click="checkHealth">检查服务</button>
     <p v-if="state === 'ready'">{{ service }} 已就绪</p>

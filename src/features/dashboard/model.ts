@@ -1,6 +1,6 @@
 export type DashboardRange = '7d' | '30d';
 
-export type MetricKey = 'plays' | 'newUsers' | 'pendingReviews' | 'playFailureRate';
+export type MetricKey = 'plays' | 'newUsers' | 'publishedVideos' | 'interactions';
 export type MetricTone = 'positive' | 'neutral' | 'warning' | 'danger';
 
 export interface DashboardMetric {
@@ -22,7 +22,7 @@ export interface DashboardTrend {
   points: TrendPoint[];
 }
 
-export type TodoKey = 'videoReview' | 'report' | 'transcodeFailure' | 'storageWarning';
+export type TodoKey = 'videoReview' | 'report' | 'storageWarning';
 
 export interface DashboardTodo {
   key: TodoKey;
@@ -35,11 +35,11 @@ export interface DashboardTodo {
 export interface DashboardStorage {
   mount: '/media';
   usedPercent: number;
-  backupStatus: 'healthy' | 'delayed' | 'failed';
-  lastBackupAt: string;
+  backupStatus: 'healthy' | 'delayed' | 'failed' | 'unknown';
+  lastBackupAt: string | null;
 }
 
-export type VideoStatus = 'published' | 'pendingReview' | 'transcoding' | 'transcodeFailed' | 'offShelf';
+export type VideoStatus = 'published' | 'pendingReview' | 'transcoding' | 'transcodeFailed' | 'offShelf' | 'rejected' | 'draft';
 
 export interface RecentVideo {
   id: string;
@@ -47,7 +47,9 @@ export interface RecentVideo {
   author: string;
   status: VideoStatus;
   playCount: number | null;
+  interactionCount: number | null;
   publishedAt: string | null;
+  updatedAt: string | null;
 }
 
 export interface DashboardSnapshot {
